@@ -6,7 +6,6 @@
   <title>Dữ liệu chấm công</title>
   <style>
     body { font-family: Arial, sans-serif; background: #f4f6f9; margin: 0; padding: 0; display: flex; flex-direction: column; min-height: 100vh; }
-
     .container { flex: 1; padding: 20px; }
     h2 { text-align: center; color: #2c3e50; margin-bottom: 15px; }
     .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
@@ -22,7 +21,6 @@
   </style>
 </head>
 <body>
-
 
   <div class="container">
     <h2>Danh sách chấm công</h2>
@@ -48,6 +46,9 @@
     </div>
   </div>
 
+  <footer>
+    <p>&copy; 2025 Hệ thống chấm công GPS</p>
+  </footer>
 
   <script>
     let attendanceData = [];
@@ -58,6 +59,7 @@
         const data = await res.json();
         attendanceData = data;
         renderTable(data);
+        console.log("Dữ liệu đã được làm mới:", new Date().toLocaleTimeString());
       } catch (err) {
         console.error("Lỗi tải dữ liệu:", err);
       }
@@ -113,12 +115,16 @@
       renderTable(sorted);
     }
 
-    // 🔄 Làm mới dữ liệu
+    // 🔄 Nút làm mới
     function refreshData() {
       document.getElementById("searchInput").value = "";
       loadData();
     }
 
+    // 🚀 Auto refresh mỗi 1 phút
+    setInterval(refreshData, 60000);
+
+    // Gọi lần đầu
     loadData();
   </script>
 </body>
