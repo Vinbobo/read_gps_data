@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dữ liệu chấm công</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f6f9; padding: 20px; }
+    .container { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    h2 { text-align: center; color: #2c3e50; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background: #3498db; color: white; }
+    tr:nth-child(even) { background: #f9f9f9; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Danh sách chấm công</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Mã NV</th>
+          <th>Tên NV</th>
+          <th>Địa chỉ</th>
+          <th>Thời gian</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="data-body"></tbody>
+    </table>
+  </div>
+
+  <script>
+    async function loadData() {
+      try {
+        const res = await fetch("/api/attendances");
+        const data = await res.json();
+        const tbody = document.getElementById("data-body");
+        tbody.innerHTML = "";
+
+        data.forEach(row => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${row.EmployeeId || ""}</td>
+            <td>${row.EmployeeName || ""}</td>
+            <td>${row.Address || ""}</td>
+            <td>${row.CheckinTime ? new Date(row.CheckinTime).toLocaleString() : ""}</td>
+            <td>${row.Status || ""}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        console.error("Lỗi tải dữ liệu:", err);
+      }
+    }
+
+    loadData();
+  </script>
+</body>
+</html>
