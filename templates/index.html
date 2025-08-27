@@ -5,54 +5,113 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dữ liệu chấm công</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #f4f6f9; padding: 20px; }
-    .container { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    h2 { text-align: center; color: #2c3e50; }
-    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    body { font-family: Arial, sans-serif; background: #f4f6f9; margin: 0; padding: 0; display: flex; flex-direction: column; min-height: 100vh; }
+    header, footer { background: #3498db; color: white; text-align: center; padding: 10px; }
+    footer { margin-top: auto; }
+    .container { flex: 1; padding: 20px; }
+    h2 { text-align: center; color: #2c3e50; margin-bottom: 15px; }
+    .search-box { text-align: right; margin-bottom: 10px; }
+    .search-box input { padding: 5px; width: 250px; }
+
+    .table-container { max-height: 400px; overflow-y: auto; border: 1px solid #ccc; }
+    table { width: 100%; border-collapse: collapse; }
     th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-    th { background: #3498db; color: white; }
+    th { background: #3498db; color: white; cursor: pointer; position: sticky; top: 0; z-index: 1; }
     tr:nth-child(even) { background: #f9f9f9; }
   </style>
 </head>
 <body>
+  <header>
+    <h1>Hệ thống chấm công GPS</h1>
+  </header>
+
   <div class="container">
     <h2>Danh sách chấm công</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Mã NV</th>
-          <th>Tên NV</th>
-          <th>Địa chỉ</th>
-          <th>Thời gian</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody id="data-body"></tbody>
-    </table>
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="Tìm kiếm...">
+    </div>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortTable(0)">Mã NV</th>
+            <th onclick="sortTable(1)">Tên NV</th>
+            <th onclick="sortTable(2)">Địa chỉ</th>
+            <th onclick="sortTable(3)">Thời gian</th>
+            <th onclick="sortTable(4)">Status</th>
+          </tr>
+        </thead>
+        <tbody id="data-body"></tbody>
+      </table>
+    </div>
   </div>
 
+  <footer>
+    <p>&copy; 2025 Hệ thống chấm công GPS</p>
+  </footer>
+
   <script>
+    let attendanceData = [];
+
     async function loadData() {
       try {
         const res = await fetch("/api/attendances");
         const data = await res.json();
-        const tbody = document.getElementById("data-body");
-        tbody.innerHTML = "";
-
-        data.forEach(row => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td>${row.EmployeeId || ""}</td>
-            <td>${row.EmployeeName || ""}</td>
-            <td>${row.Address || ""}</td>
-            <td>${row.CheckinTime ? new Date(row.CheckinTime).toLocaleString() : ""}</td>
-            <td>${row.Status || ""}</td>
-          `;
-          tbody.appendChild(tr);
-        });
+        attendanceData = data;
+        renderTable(data);
       } catch (err) {
         console.error("Lỗi tải dữ liệu:", err);
       }
+    }
+
+    function renderTable(data) {
+      const tbody = document.getElementById("data-body");
+      tbody.innerHTML = "";
+      data.forEach(row => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${row.EmployeeId || ""}</td>
+          <td>${row.EmployeeName || ""}</td>
+          <td>${row.Address || ""}</td>
+          <td>${row.CheckinTime ? new Date(row.CheckinTime).toLocaleString() : ""}</td>
+          <td>${row.Status || ""}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // 🔎 Tìm kiếm theo bất kỳ cột nào
+    document.getElementById("searchInput").addEventListener("keyup", function () {
+      const keyword = this.value.toLowerCase();
+      const filtered = attendanceData.filter(row =>
+        (row.EmployeeId || "").toLowerCase().includes(keyword) ||
+        (row.EmployeeName || "").toLowerCase().includes(keyword) ||
+        (row.Address || "").toLowerCase().includes(keyword) ||
+        (row.Status || "").toLowerCase().includes(keyword)
+      );
+      renderTable(filtered);
+    });
+
+    // ↕️ Sắp xếp khi click vào header
+    let sortDirection = true;
+    function sortTable(colIndex) {
+      const sorted = [...attendanceData].sort((a, b) => {
+        const keys = ["EmployeeId", "EmployeeName", "Address", "CheckinTime", "Status"];
+        let valA = a[keys[colIndex]] || "";
+        let valB = b[keys[colIndex]] || "";
+
+        if (keys[colIndex] === "CheckinTime") {
+          valA = new Date(valA);
+          valB = new Date(valB);
+        }
+
+        if (valA < valB) return sortDirection ? -1 : 1;
+        if (valA > valB) return sortDirection ? 1 : -1;
+        return 0;
+      });
+
+      sortDirection = !sortDirection;
+      renderTable(sorted);
     }
 
     loadData();
