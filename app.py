@@ -15,7 +15,7 @@ DB_NAME = os.getenv("DB_NAME", "Sun_Database_1")
 
 client = MongoClient(MONGO_URI)
 db = client[DB_NAME]
-collection = db["HR_GPS_Attendance"]
+collection = db["checkins"]
 
 # 🔹 Trang chính
 @app.route("/")
