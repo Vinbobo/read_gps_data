@@ -29,11 +29,8 @@
       <option value="year">Năm nay</option>
     </select>
 
-    <label for="startDate">Từ:</label>
-    <input type="date" id="startDate">
-
-    <label for="endDate">Đến:</label>
-    <input type="date" id="endDate">
+    <label for="searchBox">Tìm tên NV:</label>
+    <input type="text" id="searchBox" placeholder="Nhập tên nhân viên">
 
     <label for="fileName">Tên file:</label>
     <input type="text" id="fileName" value="attendance_data.xlsx">
@@ -60,11 +57,8 @@
   </table>
 
   <script>
-    async function reloadData(filter = "all", startDate = "", endDate = "") {
-      let url = `/api/attendances?filter=${filter}`;
-      if (startDate && endDate) {
-        url += `&startDate=${startDate}&endDate=${endDate}`;
-      }
+    async function reloadData(filter = "all", search = "") {
+      let url = `/api/attendances?filter=${filter}&search=${encodeURIComponent(search)}`;
       const res = await fetch(url);
       const data = await res.json();
 
@@ -85,37 +79,29 @@
 
     function applyFilter() {
       const filter = document.getElementById("quickFilter").value;
-      const startDate = document.getElementById("startDate").value;
-      const endDate = document.getElementById("endDate").value;
-      reloadData(filter, startDate, endDate);
+      const search = document.getElementById("searchBox").value.trim();
+      reloadData(filter, search);
     }
 
     function clearFilter() {
       document.getElementById("quickFilter").value = "all";
-      document.getElementById("startDate").value = "";
-      document.getElementById("endDate").value = "";
-      reloadData("all");
+      document.getElementById("searchBox").value = "";
+      reloadData("all", "");
     }
 
     function resetAll() {
       document.getElementById("quickFilter").value = "all";
-      document.getElementById("startDate").value = "";
-      document.getElementById("endDate").value = "";
+      document.getElementById("searchBox").value = "";
       document.getElementById("fileName").value = "attendance_data.xlsx";
-      reloadData("all");
+      reloadData("all", "");
     }
 
     function exportExcel() {
       const filter = document.getElementById("quickFilter").value;
-      const startDate = document.getElementById("startDate").value;
-      const endDate = document.getElementById("endDate").value;
+      const search = document.getElementById("searchBox").value.trim();
       const fileName = document.getElementById("fileName").value || "attendance_data.xlsx";
 
-      let url = `/api/export-excel?filter=${filter}`;
-      if (startDate && endDate) {
-        url += `&startDate=${startDate}&endDate=${endDate}`;
-      }
-
+      let url = `/api/export-excel?filter=${filter}&search=${encodeURIComponent(search)}`;
       fetch(url)
         .then(resp => resp.blob())
         .then(blob => {
