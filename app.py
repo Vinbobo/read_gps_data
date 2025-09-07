@@ -6,6 +6,7 @@ import pandas as pd
 from io import BytesIO
 from datetime import datetime, timedelta
 import calendar
+import re
 
 app = Flask(__name__, template_folder="templates")
 CORS(app)
@@ -30,7 +31,7 @@ except Exception as e:
 
 
 # ---- Helper function ----
-def build_query(filter_type, start_date, end_date):
+def build_query(filter_type, start_date, end_date, search):
     query = {}
     today = datetime.now()
 
@@ -42,10 +43,9 @@ def build_query(filter_type, start_date, end_date):
             query["CheckinTime"] = {"$gte": start, "$lte": end}
         except ValueError:
             pass
-        return query
 
     # Lọc nhanh theo tuần/tháng/năm
-    if filter_type == "week":
+    elif filter_type == "week":
         start = today - timedelta(days=today.weekday())  # Monday
         end = start + timedelta(days=6)  # Sunday
         query["CheckinTime"] = {"$gte": start, "$lte": end}
@@ -60,6 +60,10 @@ def build_query(filter_type, start_date, end_date):
         start = today.replace(month=1, day=1)
         end = today.replace(month=12, day=31, hour=23, minute=59, second=59)
         query["CheckinTime"] = {"$gte": start, "$lte": end}
+
+    # Nếu có tham số tìm kiếm
+    if search:
+        query["EmployeeName"] = {"$regex": re.compile(search, re.IGNORECASE)}
 
     return query
 
@@ -76,8 +80,9 @@ def get_attendances():
         filter_type = request.args.get("filter", "all")
         start_date = request.args.get("startDate")
         end_date = request.args.get("endDate")
+        search = request.args.get("search", "").strip()
 
-        query = build_query(filter_type, start_date, end_date)
+        query = build_query(filter_type, start_date, end_date, search)
 
         data = list(collection.find(query, {
             "_id": 0,
@@ -104,8 +109,9 @@ def export_to_excel():
         filter_type = request.args.get("filter", "all")
         start_date = request.args.get("startDate")
         end_date = request.args.get("endDate")
+        search = request.args.get("search", "").strip()
 
-        query = build_query(filter_type, start_date, end_date)
+        query = build_query(filter_type, start_date, end_date, search)
         data = list(collection.find(query, {
             "_id": 0,
             "EmployeeId": 1,
@@ -129,6 +135,8 @@ def export_to_excel():
         # Tạo tên file động
         if start_date and end_date:
             filename = f"attendance_{start_date}_to_{end_date}.xlsx"
+        elif search:
+            filename = f"attendance_{search}_{datetime.now().strftime('%Y%m%d')}.xlsx"
         else:
             filename = f"attendance_{filter_type}_{datetime.now().strftime('%Y%m%d')}.xlsx"
 
