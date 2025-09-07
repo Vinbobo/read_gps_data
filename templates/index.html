@@ -6,113 +6,142 @@
   <title>Dữ liệu chấm công GPS</title>
   <style>
     body { font-family: Arial, sans-serif; background: #f4f6f9; padding: 20px; }
-    h2 { color: #333; }
-    .controls { margin-bottom: 15px; }
-    .controls input, .controls select, .controls button {
-      margin: 5px; padding: 6px; font-size: 14px;
-    }
-    table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #fff; }
-    table, th, td { border: 1px solid #ccc; }
-    th, td { padding: 8px; text-align: center; }
-    th { background: #eee; }
+    h2 { text-align: center; }
+    .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
+    .controls input, .controls select, .controls button { padding: 6px 10px; font-size: 14px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; background: white; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background: #007bff; color: white; }
+    tr:nth-child(even) { background: #f2f2f2; }
   </style>
 </head>
 <body>
-  <h2>Dữ liệu chấm công GPS</h2>
+  <h2>📌 Dữ liệu chấm công GPS</h2>
 
+  <!-- Bộ lọc nhanh -->
   <div class="controls">
-    <label for="quickFilter">Chọn nhanh:</label>
-    <select id="quickFilter">
-      <option value="all">Tất cả</option>
-      <option value="week">Tuần này</option>
-      <option value="month">Tháng này</option>
-      <option value="year">Năm nay</option>
-    </select>
-
-    <label for="searchBox">Tìm tên NV:</label>
-    <input type="text" id="searchBox" placeholder="Nhập tên nhân viên">
-
-    <label for="fileName">Tên file:</label>
-    <input type="text" id="fileName" value="attendance_data.xlsx">
+    <label><b>Lọc nhanh:</b></label>
+    <button onclick="applyFilter('week')">Tuần này</button>
+    <button onclick="applyFilter('month')">Tháng này</button>
+    <button onclick="applyFilter('year')">Năm nay</button>
+    <button onclick="applyFilter('all')">Tất cả</button>
   </div>
 
+  <!-- Lọc theo khoảng ngày -->
   <div class="controls">
-    <button onclick="applyFilter()">Lọc</button>
-    <button onclick="clearFilter()">Huỷ lọc</button>
-    <button onclick="resetAll()">Làm mới</button>
-    <button onclick="exportExcel()">Xuất Excel</button>
+    <label><b>Từ ngày:</b></label>
+    <input type="date" id="startDate">
+    <label><b>Đến ngày:</b></label>
+    <input type="date" id="endDate">
+    <button onclick="applyDateRange()">Áp dụng</button>
   </div>
 
-  <table id="attendanceTable">
+  <!-- Tìm kiếm -->
+  <div class="controls">
+    <label><b>Tìm kiếm:</b></label>
+    <input type="text" id="searchBox" placeholder="Nhập tên nhân viên...">
+    <button onclick="applySearch()">Tìm</button>
+  </div>
+
+  <!-- Xuất Excel + Reset -->
+  <div class="controls">
+    <button onclick="exportExcel()">📥 Xuất Excel</button>
+    <button onclick="loadData()">🔄 Làm mới</button>
+    <button onclick="resetAll()">♻️ Reset</button>
+  </div>
+
+  <!-- Bảng dữ liệu -->
+  <table>
     <thead>
       <tr>
         <th>Mã NV</th>
-        <th>Tên NV</th>
+        <th>Tên nhân viên</th>
         <th>Địa chỉ</th>
-        <th>Thời gian chấm công</th>
+        <th>Thời gian Check-in</th>
         <th>Trạng thái</th>
       </tr>
     </thead>
-    <tbody></tbody>
+    <tbody id="dataBody"></tbody>
   </table>
 
   <script>
-    async function reloadData(filter = "all", search = "") {
-      let url = `/api/attendances?filter=${filter}&search=${encodeURIComponent(search)}`;
+    let currentFilter = "all";
+    let currentStartDate = "";
+    let currentEndDate = "";
+    let currentSearch = "";
+
+    async function loadData() {
+      let url = `/api/attendances?filter=${currentFilter}`;
+      if (currentStartDate && currentEndDate) {
+        url += `&startDate=${currentStartDate}&endDate=${currentEndDate}`;
+      }
+      if (currentSearch) {
+        url += `&search=${encodeURIComponent(currentSearch)}`;
+      }
+
       const res = await fetch(url);
       const data = await res.json();
 
-      const tbody = document.querySelector("#attendanceTable tbody");
+      const tbody = document.getElementById("dataBody");
       tbody.innerHTML = "";
       data.forEach(row => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${row.EmployeeId || ""}</td>
-          <td>${row.EmployeeName || ""}</td>
-          <td>${row.Address || ""}</td>
-          <td>${row.CheckinTime || ""}</td>
-          <td>${row.Status || ""}</td>
+        tbody.innerHTML += `
+          <tr>
+            <td>${row.EmployeeId || ""}</td>
+            <td>${row.EmployeeName || ""}</td>
+            <td>${row.Address || ""}</td>
+            <td>${row.CheckinTime || ""}</td>
+            <td>${row.Status || ""}</td>
+          </tr>
         `;
-        tbody.appendChild(tr);
       });
     }
 
-    function applyFilter() {
-      const filter = document.getElementById("quickFilter").value;
-      const search = document.getElementById("searchBox").value.trim();
-      reloadData(filter, search);
+    function applyFilter(type) {
+      currentFilter = type;
+      currentStartDate = "";
+      currentEndDate = "";
+      loadData();
     }
 
-    function clearFilter() {
-      document.getElementById("quickFilter").value = "all";
-      document.getElementById("searchBox").value = "";
-      reloadData("all", "");
+    function applyDateRange() {
+      currentStartDate = document.getElementById("startDate").value;
+      currentEndDate = document.getElementById("endDate").value;
+      currentFilter = "custom";
+      loadData();
     }
 
-    function resetAll() {
-      document.getElementById("quickFilter").value = "all";
-      document.getElementById("searchBox").value = "";
-      document.getElementById("fileName").value = "attendance_data.xlsx";
-      reloadData("all", "");
+    function applySearch() {
+      currentSearch = document.getElementById("searchBox").value;
+      loadData();
     }
 
     function exportExcel() {
-      const filter = document.getElementById("quickFilter").value;
-      const search = document.getElementById("searchBox").value.trim();
-      const fileName = document.getElementById("fileName").value || "attendance_data.xlsx";
-
-      let url = `/api/export-excel?filter=${filter}&search=${encodeURIComponent(search)}`;
-      fetch(url)
-        .then(resp => resp.blob())
-        .then(blob => {
-          const link = document.createElement("a");
-          link.href = window.URL.createObjectURL(blob);
-          link.download = fileName;
-          link.click();
-        });
+      let url = `/api/export-excel?filter=${currentFilter}`;
+      if (currentStartDate && currentEndDate) {
+        url += `&startDate=${currentStartDate}&endDate=${currentEndDate}`;
+      }
+      if (currentSearch) {
+        url += `&search=${encodeURIComponent(currentSearch)}`;
+      }
+      window.location.href = url;
     }
 
-    document.addEventListener("DOMContentLoaded", () => reloadData());
+    function resetAll() {
+      currentFilter = "all";
+      currentStartDate = "";
+      currentEndDate = "";
+      currentSearch = "";
+      document.getElementById("startDate").value = "";
+      document.getElementById("endDate").value = "";
+      document.getElementById("searchBox").value = "";
+      loadData();
+    }
+
+    // Tải mặc định khi mở trang
+    loadData();
+    // Tự động làm mới mỗi 1 phút
+    setInterval(loadData, 60000);
   </script>
 </body>
 </html>
