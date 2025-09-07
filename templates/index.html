@@ -14,21 +14,20 @@
     button { cursor: pointer; background: #007bff; color: #fff; border: none; }
     button:hover { background: #0056b3; }
     table { width: 100%; border-collapse: collapse; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
-    th { background: #007bff; color: #fff; }
+    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; cursor: pointer; }
+    th { background: #007bff; color: #fff; user-select: none; }
     tr:hover { background: #f1f1f1; }
+    .arrow { margin-left: 5px; font-size: 12px; }
   </style>
 </head>
 <body>
   <h2>📌 Dữ liệu chấm công GPS</h2>
 
   <div class="toolbar">
-    <!-- Ô tìm kiếm -->
     <div class="search-box">
       <input type="text" id="searchInput" placeholder="🔍 Tìm kiếm theo tên hoặc mã NV..." onkeyup="searchTable()">
     </div>
 
-    <!-- Bộ lọc -->
     <div class="filter-box">
       <label>Từ:</label>
       <input type="date" id="startDate">
@@ -49,15 +48,14 @@
     </div>
   </div>
 
-  <!-- Bảng dữ liệu -->
   <table id="attendanceTable">
     <thead>
       <tr>
-        <th>Mã NV</th>
-        <th>Tên nhân viên</th>
-        <th>Địa chỉ</th>
-        <th>Thời gian Check-in</th>
-        <th>Trạng thái</th>
+        <th data-key="EmployeeId">Mã NV <span class="arrow"></span></th>
+        <th data-key="EmployeeName">Tên nhân viên <span class="arrow"></span></th>
+        <th data-key="Address">Địa chỉ <span class="arrow"></span></th>
+        <th data-key="CheckinTime">Thời gian Check-in <span class="arrow"></span></th>
+        <th data-key="Status">Trạng thái <span class="arrow"></span></th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -65,6 +63,7 @@
 
   <script>
     let tableData = [];
+    let currentSort = { key: null, order: null }; // order: 'asc' | 'desc' | null
 
     function renderTable(data) {
       const tbody = document.querySelector('#attendanceTable tbody');
@@ -82,7 +81,6 @@
       });
     }
 
-    // Load dữ liệu từ API
     function reloadData() {
       const filter = document.getElementById('timeFilter').value;
       let url = `/api/attendances?filter=${filter}`;
@@ -96,7 +94,6 @@
         .catch(error => console.error('Error:', error));
     }
 
-    // Lọc theo ngày
     function applyDateFilter() {
       const startDate = document.getElementById('startDate').value;
       const endDate = document.getElementById('endDate').value;
@@ -114,23 +111,22 @@
         .catch(error => console.error('Error:', error));
     }
 
-    // Huỷ lọc ngày
     function clearDateFilter() {
       document.getElementById('startDate').value = "";
       document.getElementById('endDate').value = "";
       reloadData();
     }
 
-    // Làm mới toàn bộ
     function resetAll() {
       document.getElementById('searchInput').value = "";
       document.getElementById('startDate').value = "";
       document.getElementById('endDate').value = "";
       document.getElementById('timeFilter').value = "all";
+      clearSortIndicators();
+      currentSort = { key: null, order: null };
       reloadData();
     }
 
-    // Xuất Excel
     function exportToExcel() {
       const filter = document.getElementById('timeFilter').value;
       const startDate = document.getElementById('startDate').value;
@@ -140,7 +136,7 @@
       if (startDate && endDate) {
         url += `&startDate=${startDate}&endDate=${endDate}`;
       }
- 
+
       fetch(url, { method: 'GET' })
         .then(response => response.blob())
         .then(blob => {
@@ -156,7 +152,6 @@
         .catch(error => console.error('Error exporting:', error));
     }
 
-    // Tìm kiếm
     function searchTable() {
       const keyword = document.getElementById('searchInput').value.toLowerCase();
       const filtered = tableData.filter(row =>
@@ -166,8 +161,49 @@
       renderTable(filtered);
     }
 
-    // Load khi mở trang
-    window.onload = reloadData;
+    // Sắp xếp theo cột
+    function sortTable(key) {
+      if (currentSort.key === key) {
+        if (currentSort.order === 'asc') currentSort.order = 'desc';
+        else if (currentSort.order === 'desc') currentSort.order = null;
+        else currentSort.order = 'asc';
+      } else {
+        currentSort.key = key;
+        currentSort.order = 'asc';
+      }
+
+      clearSortIndicators();
+      const th = document.querySelector(`th[data-key="${key}"] .arrow`);
+      if (currentSort.order === 'asc') th.textContent = "⬆️";
+      else if (currentSort.order === 'desc') th.textContent = "⬇️";
+      else th.textContent = "";
+
+      let sortedData = [...tableData];
+      if (currentSort.order) {
+        sortedData.sort((a, b) => {
+          let valA = a[key] || "";
+          let valB = b[key] || "";
+          if (typeof valA === 'string') valA = valA.toLowerCase();
+          if (typeof valB === 'string') valB = valB.toLowerCase();
+          if (valA < valB) return currentSort.order === 'asc' ? -1 : 1;
+          if (valA > valB) return currentSort.order === 'asc' ? 1 : -1;
+          return 0;
+        });
+      }
+      renderTable(sortedData);
+    }
+
+    function clearSortIndicators() {
+      document.querySelectorAll('.arrow').forEach(span => span.textContent = "");
+    }
+
+    // Gắn sự kiện click vào header
+    document.addEventListener("DOMContentLoaded", () => {
+      document.querySelectorAll("th[data-key]").forEach(th => {
+        th.addEventListener("click", () => sortTable(th.getAttribute("data-key")));
+      });
+      reloadData();
+    });
   </script>
 </body>
 </html>
