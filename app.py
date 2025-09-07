@@ -10,7 +10,7 @@ import calendar
 app = Flask(__name__, template_folder="templates")
 CORS(app)
 
-MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://....")
+MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://banhbaobeo2205:lm2hiCLXp6B0D7hq@cluster0.festnla.mongodb.net/?retryWrites=true&w=majority")
 DB_NAME = os.getenv("DB_NAME", "Sun_Database_1")
 
 client = MongoClient(MONGO_URI)
