@@ -29,12 +29,6 @@
       <option value="year">Năm nay</option>
     </select>
 
-    <label for="startDate">Từ ngày:</label>
-    <input type="date" id="startDate">
-
-    <label for="endDate">Đến ngày:</label>
-    <input type="date" id="endDate">
-
     <label for="fileName">Tên file:</label>
     <input type="text" id="fileName" value="attendance_data.xlsx">
   </div>
@@ -51,9 +45,8 @@
       <tr>
         <th>Mã NV</th>
         <th>Tên NV</th>
-        <th>Check-in</th>
-        <th>Latitude</th>
-        <th>Longitude</th>
+        <th>Địa chỉ</th>
+        <th>Thời gian chấm công</th>
         <th>Trạng thái</th>
       </tr>
     </thead>
@@ -61,11 +54,8 @@
   </table>
 
   <script>
-    async function reloadData(startDate = "", endDate = "") {
-      let url = "/data";
-      if (startDate && endDate) {
-        url += `?start=${startDate}&end=${endDate}`;
-      }
+    async function reloadData(filter = "all") {
+      let url = `/api/attendances?filter=${filter}`;
       const res = await fetch(url);
       const data = await res.json();
 
@@ -74,84 +64,46 @@
       data.forEach(row => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td>${row.EmployeeId}</td>
-          <td>${row.EmployeeName}</td>
-          <td>${row.CheckInTime}</td>
-          <td>${row.Latitude}</td>
-          <td>${row.Longitude}</td>
-          <td>${row.Status}</td>
+          <td>${row.EmployeeId || ""}</td>
+          <td>${row.EmployeeName || ""}</td>
+          <td>${row.Address || ""}</td>
+          <td>${row.CheckinTime || ""}</td>
+          <td>${row.Status || ""}</td>
         `;
         tbody.appendChild(tr);
       });
     }
 
     function applyFilter() {
-      const startDate = document.getElementById("startDate").value;
-      const endDate = document.getElementById("endDate").value;
-      if (startDate && endDate) {
-        reloadData(startDate, endDate);
-      } else {
-        alert("Vui lòng chọn đủ khoảng thời gian!");
-      }
+      const filter = document.getElementById("quickFilter").value;
+      reloadData(filter);
     }
 
     function clearFilter() {
-      document.getElementById("startDate").value = "";
-      document.getElementById("endDate").value = "";
-      reloadData();
+      document.getElementById("quickFilter").value = "all";
+      reloadData("all");
     }
 
     function resetAll() {
       document.getElementById("quickFilter").value = "all";
-      document.getElementById("startDate").value = "";
-      document.getElementById("endDate").value = "";
       document.getElementById("fileName").value = "attendance_data.xlsx";
-      reloadData();
+      reloadData("all");
     }
 
     function exportExcel() {
-      const startDate = document.getElementById("startDate").value;
-      const endDate = document.getElementById("endDate").value;
+      const filter = document.getElementById("quickFilter").value;
       const fileName = document.getElementById("fileName").value || "attendance_data.xlsx";
 
-      let url = `/export?file_name=${encodeURIComponent(fileName)}`;
-      if (startDate && endDate) {
-        url += `&start=${startDate}&end=${endDate}`;
-      }
-
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      let url = `/api/export-excel?filter=${filter}`;
+      fetch(url)
+        .then(resp => resp.blob())
+        .then(blob => {
+          const link = document.createElement("a");
+          link.href = window.URL.createObjectURL(blob);
+          link.download = fileName;
+          link.click();
+        });
     }
-
-    document.getElementById("quickFilter").addEventListener("change", function () {
-      const today = new Date();
-      let startDate = "", endDate = "";
-
-      if (this.value === "week") {
-        const first = today.getDate() - today.getDay() + 1;
-        startDate = new Date(today.getFullYear(), today.getMonth(), first).toISOString().slice(0, 10);
-        endDate = new Date().toISOString().slice(0, 10);
-      } else if (this.value === "month") {
-        startDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
-        endDate = new Date().toISOString().slice(0, 10);
-      } else if (this.value === "year") {
-        startDate = new Date(today.getFullYear(), 0, 1).toISOString().slice(0, 10);
-        endDate = new Date().toISOString().slice(0, 10);
-      }
-
-      document.getElementById("startDate").value = startDate;
-      document.getElementById("endDate").value = endDate;
-
-      if (this.value === "all") {
-        reloadData();
-      } else {
-        reloadData(startDate, endDate);
-      }
-    });
 
     document.addEventListener("DOMContentLoaded", () => reloadData());
   </script>
