@@ -7,8 +7,8 @@
   <style>
     body { font-family: Arial, sans-serif; background: #f4f6f9; padding: 20px; }
     h2 { text-align: center; }
-    .toolbar { display: flex; justify-content: space-between; margin-bottom: 15px; flex-wrap: wrap; }
-    .search-box { flex: 1; min-width: 200px; margin-bottom: 8px; }
+    .toolbar { display: flex; justify-content: space-between; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
+    .search-box { flex: 1; min-width: 200px; }
     .filter-box { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
     input, select, button { padding: 6px 10px; font-size: 14px; border-radius: 5px; border: 1px solid #ccc; }
     button { cursor: pointer; background: #007bff; color: #fff; border: none; }
@@ -35,14 +35,16 @@
       <label>Đến:</label>
       <input type="date" id="endDate">
 
-      <select id="timeFilter" onchange="reloadData()">
+      <select id="timeFilter">
         <option value="all">Tất cả</option>
         <option value="week">Tuần này</option>
         <option value="month">Tháng này</option>
         <option value="year">Năm nay</option>
       </select>
 
-      <button onclick="reloadData()">🔄 Làm mới</button>
+      <button onclick="applyDateFilter()">📅 Lọc</button>
+      <button onclick="clearDateFilter()">❌ Huỷ lọc</button>
+      <button onclick="resetAll()">🔄 Làm mới</button>
       <button onclick="exportToExcel()">📥 Xuất Excel</button>
     </div>
   </div>
@@ -80,15 +82,10 @@
       });
     }
 
+    // Load dữ liệu từ API
     function reloadData() {
       const filter = document.getElementById('timeFilter').value;
-      const startDate = document.getElementById('startDate').value;
-      const endDate = document.getElementById('endDate').value;
-
       let url = `/api/attendances?filter=${filter}`;
-      if (startDate && endDate) {
-        url += `&startDate=${startDate}&endDate=${endDate}`;
-      }
 
       fetch(url)
         .then(response => response.json())
@@ -99,6 +96,41 @@
         .catch(error => console.error('Error:', error));
     }
 
+    // Lọc theo ngày
+    function applyDateFilter() {
+      const startDate = document.getElementById('startDate').value;
+      const endDate = document.getElementById('endDate').value;
+      if (!startDate || !endDate) {
+        alert("Vui lòng chọn đủ cả Từ ngày và Đến ngày!");
+        return;
+      }
+      let url = `/api/attendances?startDate=${startDate}&endDate=${endDate}`;
+      fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          tableData = data;
+          renderTable(tableData);
+        })
+        .catch(error => console.error('Error:', error));
+    }
+
+    // Huỷ lọc ngày
+    function clearDateFilter() {
+      document.getElementById('startDate').value = "";
+      document.getElementById('endDate').value = "";
+      reloadData();
+    }
+
+    // Làm mới toàn bộ
+    function resetAll() {
+      document.getElementById('searchInput').value = "";
+      document.getElementById('startDate').value = "";
+      document.getElementById('endDate').value = "";
+      document.getElementById('timeFilter').value = "all";
+      reloadData();
+    }
+
+    // Xuất Excel
     function exportToExcel() {
       const filter = document.getElementById('timeFilter').value;
       const startDate = document.getElementById('startDate').value;
@@ -124,6 +156,7 @@
         .catch(error => console.error('Error exporting:', error));
     }
 
+    // Tìm kiếm
     function searchTable() {
       const keyword = document.getElementById('searchInput').value.toLowerCase();
       const filtered = tableData.filter(row =>
@@ -133,7 +166,7 @@
       renderTable(filtered);
     }
 
-    // Tự động tải dữ liệu khi mở trang
+    // Load khi mở trang
     window.onload = reloadData;
   </script>
 </body>
