@@ -9,14 +9,14 @@
     h2 { text-align: center; }
     .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
     .controls input, .controls select, .controls button { padding: 6px 10px; font-size: 14px; }
+    .table-container { max-height: 500px; overflow-y: auto; border: 1px solid #ccc; }
     table { width: 100%; border-collapse: collapse; background: white; }
     th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-    th { background: #007bff; color: white; cursor: pointer; user-select: none; }
+    th { background: #007bff; color: white; cursor: pointer; user-select: none; position: sticky; top: 0; z-index: 2; }
     tr:nth-child(even) { background: #f2f2f2; }
     .sortable:after { content: " ⇅"; font-size: 12px; }
     .asc:after { content: " ↑"; }
     .desc:after { content: " ↓"; }
-    .table-container { max-height: 500px; overflow-y: auto; border: 1px solid #ccc; }
   </style>
 </head>
 <body>
@@ -76,7 +76,7 @@
     let currentEndDate = "";
     let currentSearch = "";
     let rawData = [];
-    let currentSort = { column: null, order: null }; // order: "asc" | "desc" | null
+    let currentSort = { column: null, order: null };
 
     async function loadData() {
       let url = `/api/attendances?filter=${currentFilter}`;
@@ -96,7 +96,6 @@
     function renderTable() {
       let data = [...rawData];
 
-      // Sort
       if (currentSort.column && currentSort.order) {
         data.sort((a, b) => {
           let valA = a[currentSort.column] || "";
@@ -129,7 +128,7 @@
         if (currentSort.order === "asc") {
           currentSort.order = "desc";
         } else if (currentSort.order === "desc") {
-          currentSort.order = null; // reset
+          currentSort.order = null;
           currentSort.column = null;
         } else {
           currentSort.order = "asc";
@@ -191,7 +190,6 @@
       loadData();
     }
 
-    // Load mặc định
     loadData();
     setInterval(loadData, 60000);
   </script>
