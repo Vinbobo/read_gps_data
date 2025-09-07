@@ -44,8 +44,13 @@
       <button onclick="applyDateFilter()">📅 Lọc</button>
       <button onclick="clearDateFilter()">❌ Huỷ lọc</button>
       <button onclick="resetAll()">🔄 Làm mới</button>
-      <button onclick="exportToExcel()">📥 Xuất Excel</button>
     </div>
+  </div>
+
+  <div class="toolbar">
+    <label>📁 Tên file:</label>
+    <input type="text" id="fileName" placeholder="attendance_data.xlsx" style="min-width:200px;">
+    <button onclick="exportToExcel()">📥 Xuất Excel</button>
   </div>
 
   <table id="attendanceTable">
@@ -63,7 +68,7 @@
 
   <script>
     let tableData = [];
-    let currentSort = { key: null, order: null }; // order: 'asc' | 'desc' | null
+    let currentSort = { key: null, order: null };
 
     function renderTable(data) {
       const tbody = document.querySelector('#attendanceTable tbody');
@@ -143,7 +148,13 @@
           const url = window.URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = 'attendance_data.xlsx';
+
+          // 👇 Lấy tên file người dùng nhập, mặc định là attendance_data.xlsx
+          let fileName = document.getElementById('fileName').value.trim();
+          if (!fileName) fileName = "attendance_data.xlsx";
+          if (!fileName.endsWith(".xlsx")) fileName += ".xlsx";
+
+          a.download = fileName;
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
@@ -161,7 +172,6 @@
       renderTable(filtered);
     }
 
-    // Sắp xếp theo cột
     function sortTable(key) {
       if (currentSort.key === key) {
         if (currentSort.order === 'asc') currentSort.order = 'desc';
@@ -197,7 +207,6 @@
       document.querySelectorAll('.arrow').forEach(span => span.textContent = "");
     }
 
-    // Gắn sự kiện click vào header
     document.addEventListener("DOMContentLoaded", () => {
       document.querySelectorAll("th[data-key]").forEach(th => {
         th.addEventListener("click", () => sortTable(th.getAttribute("data-key")));
