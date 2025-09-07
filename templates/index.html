@@ -5,68 +5,92 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dữ liệu chấm công</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #f4f6f9; margin: 0; padding: 0; display: flex; flex-direction: column; min-height: 100vh; }
-    .container { flex: 1; padding: 20px; }
-    h1 { text-align: center; color: #2c3e50; margin: 15px 0; }
-    .toolbar { display: flex; justify-content: space-between; align-items: center; margin: 10px 20px; flex-wrap: wrap; }
-    .search-box input { padding: 6px; width: 250px; border: 1px solid #ccc; border-radius: 4px; }
-    .refresh-btn, .export-btn { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; margin-left: 5px; }
-    .refresh-btn { background: #27ae60; color: white; }
-    .refresh-btn:hover { background: #219150; }
-    .export-btn { background: #3498db; color: white; }
-    .export-btn:hover { background: #2980b9; }
-    .table-container { max-height: 450px; overflow-y: auto; border: 1px solid #ccc; margin: 0 20px; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-    th { background: #3498db; color: white; cursor: pointer; position: sticky; top: 0; z-index: 1; }
-    tr:nth-child(even) { background: #f9f9f9; }
-    .filter-select { padding: 6px; border: 1px solid #ccc; border-radius: 4px; margin-left: 5px; }
+    body { font-family: Arial, sans-serif; background: #f4f6f9; padding: 20px; }
+    h2 { text-align: center; }
+    .toolbar { display: flex; justify-content: space-between; margin-bottom: 15px; flex-wrap: wrap; }
+    .search-box { flex: 1; min-width: 200px; margin-bottom: 8px; }
+    .filter-box { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    input, select, button { padding: 6px 10px; font-size: 14px; border-radius: 5px; border: 1px solid #ccc; }
+    button { cursor: pointer; background: #007bff; color: #fff; border: none; }
+    button:hover { background: #0056b3; }
+    table { width: 100%; border-collapse: collapse; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+    th { background: #007bff; color: #fff; }
+    tr:hover { background: #f1f1f1; }
   </style>
 </head>
 <body>
-  <h1>Danh sách chấm công</h1>
+  <h2>📌 Dữ liệu chấm công GPS</h2>
 
   <div class="toolbar">
+    <!-- Ô tìm kiếm -->
     <div class="search-box">
-      <input type="text" id="searchInput" placeholder="🔍 Tìm kiếm theo tên hoặc mã NV...">
+      <input type="text" id="searchInput" placeholder="🔍 Tìm kiếm theo tên hoặc mã NV..." onkeyup="searchTable()">
     </div>
-    <div>
-      <select id="timeFilter" class="filter-select" onchange="reloadData()">
+
+    <!-- Bộ lọc -->
+    <div class="filter-box">
+      <label>Từ:</label>
+      <input type="date" id="startDate">
+      <label>Đến:</label>
+      <input type="date" id="endDate">
+
+      <select id="timeFilter" onchange="reloadData()">
         <option value="all">Tất cả</option>
         <option value="week">Tuần này</option>
         <option value="month">Tháng này</option>
         <option value="year">Năm nay</option>
       </select>
-      <button class="export-btn" onclick="exportToExcel()">📥 Xuất Excel</button>
-      <button class="refresh-btn" onclick="reloadData()">🔄 Làm mới</button>
+
+      <button onclick="reloadData()">🔄 Làm mới</button>
+      <button onclick="exportToExcel()">📥 Xuất Excel</button>
     </div>
   </div>
 
-  <div class="table-container">
-    <table id="attendanceTable">
-      <thead>
-        <tr>
-          <th onclick="sortTable(0)">Mã NV</th>
-          <th onclick="sortTable(1)">Tên NV</th>
-          <th onclick="sortTable(2)">Địa chỉ</th>
-          <th onclick="sortTable(3)">Thời gian</th>
-          <th onclick="sortTable(4)">Status</th>
-        </tr>
-      </thead>
-      <tbody id="attendanceData">
-        <!-- Dữ liệu sẽ được chèn bằng JavaScript -->
-      </tbody>
-    </table>
-  </div>
+  <!-- Bảng dữ liệu -->
+  <table id="attendanceTable">
+    <thead>
+      <tr>
+        <th>Mã NV</th>
+        <th>Tên nhân viên</th>
+        <th>Địa chỉ</th>
+        <th>Thời gian Check-in</th>
+        <th>Trạng thái</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 
   <script>
     let tableData = [];
-    let sortDirection = {};
 
-    // Load data with filter
+    function renderTable(data) {
+      const tbody = document.querySelector('#attendanceTable tbody');
+      tbody.innerHTML = '';
+      data.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${row.EmployeeId || ''}</td>
+          <td>${row.EmployeeName || ''}</td>
+          <td>${row.Address || ''}</td>
+          <td>${row.CheckinTime || ''}</td>
+          <td>${row.Status || ''}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
     function reloadData() {
       const filter = document.getElementById('timeFilter').value;
-      fetch(`/api/attendances?filter=${filter}`)
+      const startDate = document.getElementById('startDate').value;
+      const endDate = document.getElementById('endDate').value;
+
+      let url = `/api/attendances?filter=${filter}`;
+      if (startDate && endDate) {
+        url += `&startDate=${startDate}&endDate=${endDate}`;
+      }
+
+      fetch(url)
         .then(response => response.json())
         .then(data => {
           tableData = data;
@@ -75,71 +99,23 @@
         .catch(error => console.error('Error:', error));
     }
 
-    // Render dữ liệu ra bảng
-    function renderTable(data) {
-      const tbody = document.getElementById('attendanceData');
-      tbody.innerHTML = '';
-      data.forEach(item => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>${item.EmployeeId || ''}</td>
-          <td>${item.EmployeeName || ''}</td>
-          <td>${item.Address || ''}</td>
-          <td>${item.CheckinTime || ''}</td>
-          <td>${item.Status || ''}</td>
-        `;
-        tbody.appendChild(row);
-      });
-    }
-
-    // Tìm kiếm theo ô input
-    document.getElementById('searchInput').addEventListener('keyup', function() {
-      const keyword = this.value.toLowerCase();
-      const filtered = tableData.filter(item =>
-        (item.EmployeeId && item.EmployeeId.toString().toLowerCase().includes(keyword)) ||
-        (item.EmployeeName && item.EmployeeName.toLowerCase().includes(keyword))
-      );
-      renderTable(filtered);
-    });
-
-    // Sắp xếp bảng khi click tiêu đề
-    function sortTable(colIndex) {
-      const colKeys = ['EmployeeId','EmployeeName','Address','CheckinTime','Status'];
-      const key = colKeys[colIndex];
-      sortDirection[key] = !sortDirection[key]; // toggle ASC/DESC
-    
-      tableData.sort((a,b) => {
-        let valA = a[key] || '';
-        let valB = b[key] || '';
-        if (key === 'CheckinTime') {
-          valA = new Date(valA);
-          valB = new Date(valB);
-        }
-        if (valA < valB) return sortDirection[key] ? -1 : 1;
-        if (valA > valB) return sortDirection[key] ? 1 : -1;
-        return 0;
-      });
-      renderTable(tableData);
-    
-      // --- thêm ký hiệu mũi tên
-      const ths = document.querySelectorAll("th");
-      ths.forEach((th,i)=> {
-        th.textContent = th.textContent.replace(/[\u25B2\u25BC]/g,""); // xoá icon cũ
-        if (i === colIndex) {
-          th.textContent += sortDirection[key] ? " ▲" : " ▼";
-        }
-      });
-    }
-    // Xuất Excel với filter hiện tại
     function exportToExcel() {
       const filter = document.getElementById('timeFilter').value;
-      fetch(`/api/export-excel?filter=${filter}`, { method: 'GET' })
+      const startDate = document.getElementById('startDate').value;
+      const endDate = document.getElementById('endDate').value;
+
+      let url = `/api/export-excel?filter=${filter}`;
+      if (startDate && endDate) {
+        url += `&startDate=${startDate}&endDate=${endDate}`;
+      }
+
+      fetch(url, { method: 'GET' })
         .then(response => response.blob())
         .then(blob => {
           const url = window.URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = 'attendance_data.xlsx';  // Trình duyệt sẽ hỏi "Save As"
+          a.download = 'attendance_data.xlsx';
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
@@ -147,7 +123,17 @@
         })
         .catch(error => console.error('Error exporting:', error));
     }
-    // Load ban đầu
+
+    function searchTable() {
+      const keyword = document.getElementById('searchInput').value.toLowerCase();
+      const filtered = tableData.filter(row =>
+        (row.EmployeeId && row.EmployeeId.toString().toLowerCase().includes(keyword)) ||
+        (row.EmployeeName && row.EmployeeName.toLowerCase().includes(keyword))
+      );
+      renderTable(filtered);
+    }
+
+    // Tự động tải dữ liệu khi mở trang
     window.onload = reloadData;
   </script>
 </body>
