@@ -107,7 +107,7 @@
       const colKeys = ['EmployeeId','EmployeeName','Address','CheckinTime','Status'];
       const key = colKeys[colIndex];
       sortDirection[key] = !sortDirection[key]; // toggle ASC/DESC
-
+    
       tableData.sort((a,b) => {
         let valA = a[key] || '';
         let valB = b[key] || '';
@@ -120,8 +120,16 @@
         return 0;
       });
       renderTable(tableData);
+    
+      // --- thêm ký hiệu mũi tên
+      const ths = document.querySelectorAll("th");
+      ths.forEach((th,i)=> {
+        th.textContent = th.textContent.replace(/[\u25B2\u25BC]/g,""); // xoá icon cũ
+        if (i === colIndex) {
+          th.textContent += sortDirection[key] ? " ▲" : " ▼";
+        }
+      });
     }
-
     // Xuất Excel với filter hiện tại
     function exportToExcel() {
       const filter = document.getElementById('timeFilter').value;
@@ -131,7 +139,7 @@
           const url = window.URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = 'attendance_data.xlsx';
+          a.download = 'attendance_data.xlsx';  // Trình duyệt sẽ hỏi "Save As"
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
@@ -139,7 +147,6 @@
         })
         .catch(error => console.error('Error exporting:', error));
     }
-
     // Load ban đầu
     window.onload = reloadData;
   </script>
