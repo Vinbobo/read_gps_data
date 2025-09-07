@@ -9,31 +9,16 @@
     h2 { text-align: center; }
     .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
     .controls input, .controls select, .controls button { padding: 6px 10px; font-size: 14px; }
-    .table-container {
-      max-height: 400px; /* Chỉ cuộn phần bảng */
-      overflow-y: auto;
-      border: 1px solid #ddd;
-      background: white;
-    }
-    table { width: 100%; border-collapse: collapse; }
+    table { width: 100%; border-collapse: collapse; background: white; }
     th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-    th { background: #007bff; color: white; cursor: pointer; position: relative; }
-    th.sort-asc::after { content: " ▲"; }
-    th.sort-desc::after { content: " ▼"; }
+    th { background: #007bff; color: white; cursor: pointer; user-select: none; }
     tr:nth-child(even) { background: #f2f2f2; }
+    .sortable:after { content: " ⇅"; font-size: 12px; }
+    .asc:after { content: " ↑"; }
+    .desc:after { content: " ↓"; }
+    .table-container { max-height: 400px; overflow-y: auto; border: 1px solid #ccc; }
     .pagination { margin-top: 10px; text-align: center; }
-    .pagination button {
-      padding: 5px 10px;
-      margin: 2px;
-      border: 1px solid #007bff;
-      background: white;
-      color: #007bff;
-      cursor: pointer;
-    }
-    .pagination button.active {
-      background: #007bff;
-      color: white;
-    }
+    .pagination button { margin: 0 3px; padding: 5px 10px; }
   </style>
 </head>
 <body>
@@ -64,11 +49,17 @@
     <button onclick="applySearch()">Tìm</button>
   </div>
 
-  <!-- Xuất Excel + Reset -->
+  <!-- Xuất Excel + Reset + Page size -->
   <div class="controls">
     <button onclick="exportExcel()">📥 Xuất Excel</button>
     <button onclick="loadData()">🔄 Làm mới</button>
     <button onclick="resetAll()">♻️ Reset</button>
+    <label><b>Dòng/trang:</b></label>
+    <select id="pageSize" onchange="changePageSize()">
+      <option value="10">10</option>
+      <option value="20">20</option>
+      <option value="50">50</option>
+    </select>
   </div>
 
   <!-- Bảng dữ liệu -->
@@ -76,11 +67,11 @@
     <table>
       <thead>
         <tr>
-          <th onclick="sortTable('EmployeeId')">Mã NV</th>
-          <th onclick="sortTable('EmployeeName')">Tên nhân viên</th>
-          <th onclick="sortTable('Address')">Địa chỉ</th>
-          <th onclick="sortTable('CheckinTime')">Thời gian Check-in</th>
-          <th onclick="sortTable('Status')">Trạng thái</th>
+          <th class="sortable" onclick="sortTable('EmployeeId')">Mã NV</th>
+          <th class="sortable" onclick="sortTable('EmployeeName')">Tên nhân viên</th>
+          <th class="sortable" onclick="sortTable('Address')">Địa chỉ</th>
+          <th class="sortable" onclick="sortTable('CheckinTime')">Thời gian Check-in</th>
+          <th class="sortable" onclick="sortTable('Status')">Trạng thái</th>
         </tr>
       </thead>
       <tbody id="dataBody"></tbody>
@@ -95,10 +86,12 @@
     let currentStartDate = "";
     let currentEndDate = "";
     let currentSearch = "";
-    let allData = [];
+
+    let rawData = [];
     let currentPage = 1;
-    const rowsPerPage = 10;
-    let currentSort = { column: null, order: null };
+    let pageSize = 10;
+
+    let currentSort = { column: null, order: null }; // order: "asc" | "desc" | null
 
     async function loadData() {
       let url = `/api/attendances?filter=${currentFilter}`;
@@ -110,21 +103,34 @@
       }
 
       const res = await fetch(url);
-      allData = await res.json();
+      rawData = await res.json();
 
-      applySorting();
+      currentPage = 1;
       renderTable();
     }
 
     function renderTable() {
+      let data = [...rawData];
+
+      // Sort
+      if (currentSort.column && currentSort.order) {
+        data.sort((a, b) => {
+          let valA = a[currentSort.column] || "";
+          let valB = b[currentSort.column] || "";
+          if (currentSort.order === "asc") return valA > valB ? 1 : -1;
+          if (currentSort.order === "desc") return valA < valB ? 1 : -1;
+          return 0;
+        });
+      }
+
+      // Pagination
+      let start = (currentPage - 1) * pageSize;
+      let end = start + pageSize;
+      let pagedData = data.slice(start, end);
+
       const tbody = document.getElementById("dataBody");
       tbody.innerHTML = "";
-
-      const startIdx = (currentPage - 1) * rowsPerPage;
-      const endIdx = startIdx + rowsPerPage;
-      const pageData = allData.slice(startIdx, endIdx);
-
-      pageData.forEach(row => {
+      pagedData.forEach(row => {
         tbody.innerHTML += `
           <tr>
             <td>${row.EmployeeId || ""}</td>
@@ -136,16 +142,17 @@
         `;
       });
 
-      renderPagination();
+      renderPagination(data.length);
+      updateSortIcons();
     }
 
-    function renderPagination() {
-      const pageCount = Math.ceil(allData.length / rowsPerPage);
+    function renderPagination(totalItems) {
+      const totalPages = Math.ceil(totalItems / pageSize);
       const pagination = document.getElementById("pagination");
       pagination.innerHTML = "";
 
-      for (let i = 1; i <= pageCount; i++) {
-        pagination.innerHTML += `<button class="${i === currentPage ? "active" : ""}" onclick="goToPage(${i})">${i}</button>`;
+      for (let i = 1; i <= totalPages; i++) {
+        pagination.innerHTML += `<button onclick="goToPage(${i})" ${i === currentPage ? "style='font-weight:bold;'" : ""}>${i}</button>`;
       }
     }
 
@@ -154,11 +161,41 @@
       renderTable();
     }
 
+    function changePageSize() {
+      pageSize = parseInt(document.getElementById("pageSize").value);
+      currentPage = 1;
+      renderTable();
+    }
+
+    function sortTable(column) {
+      if (currentSort.column === column) {
+        if (currentSort.order === "asc") {
+          currentSort.order = "desc";
+        } else if (currentSort.order === "desc") {
+          currentSort.order = null; // reset
+          currentSort.column = null;
+        } else {
+          currentSort.order = "asc";
+        }
+      } else {
+        currentSort.column = column;
+        currentSort.order = "asc";
+      }
+      renderTable();
+    }
+
+    function updateSortIcons() {
+      document.querySelectorAll("th.sortable").forEach(th => th.classList.remove("asc", "desc"));
+      if (currentSort.column && currentSort.order) {
+        const th = document.querySelector(`th.sortable[onclick="sortTable('${currentSort.column}')"]`);
+        if (th) th.classList.add(currentSort.order);
+      }
+    }
+
     function applyFilter(type) {
       currentFilter = type;
       currentStartDate = "";
       currentEndDate = "";
-      currentPage = 1;
       loadData();
     }
 
@@ -166,13 +203,11 @@
       currentStartDate = document.getElementById("startDate").value;
       currentEndDate = document.getElementById("endDate").value;
       currentFilter = "custom";
-      currentPage = 1;
       loadData();
     }
 
     function applySearch() {
       currentSearch = document.getElementById("searchBox").value;
-      currentPage = 1;
       loadData();
     }
 
@@ -192,47 +227,17 @@
       currentStartDate = "";
       currentEndDate = "";
       currentSearch = "";
+      currentSort = { column: null, order: null };
       document.getElementById("startDate").value = "";
       document.getElementById("endDate").value = "";
       document.getElementById("searchBox").value = "";
-      currentPage = 1;
+      document.getElementById("pageSize").value = "10";
+      pageSize = 10;
       loadData();
     }
 
-    function sortTable(column) {
-      const ths = document.querySelectorAll("th");
-      ths.forEach(th => th.classList.remove("sort-asc", "sort-desc"));
-
-      if (currentSort.column === column) {
-        currentSort.order = currentSort.order === "asc" ? "desc" : "asc";
-      } else {
-        currentSort.column = column;
-        currentSort.order = "asc";
-      }
-
-      const activeTh = [...ths].find(th => th.textContent.includes(column.replace("EmployeeId", "Mã NV").replace("EmployeeName", "Tên nhân viên").replace("Address", "Địa chỉ").replace("CheckinTime", "Thời gian Check-in").replace("Status", "Trạng thái")));
-      if (activeTh) {
-        activeTh.classList.add(currentSort.order === "asc" ? "sort-asc" : "sort-desc");
-      }
-
-      applySorting();
-      renderTable();
-    }
-
-    function applySorting() {
-      if (!currentSort.column) return;
-      allData.sort((a, b) => {
-        const valA = a[currentSort.column] || "";
-        const valB = b[currentSort.column] || "";
-        if (valA < valB) return currentSort.order === "asc" ? -1 : 1;
-        if (valA > valB) return currentSort.order === "asc" ? 1 : -1;
-        return 0;
-      });
-    }
-
-    // Tải mặc định khi mở trang
+    // Load mặc định
     loadData();
-    // Tự động làm mới mỗi 1 phút
     setInterval(loadData, 60000);
   </script>
 </body>
