@@ -11,7 +11,7 @@ app = Flask(__name__, template_folder="templates")
 CORS(app)
 
 # ---- Load MONGO_URI từ biến môi trường ----
-MONGO_URI = os.getenv("MONGO_URI")
+MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://banhbaobeo2205:lm2hiCLXp6B0D7hq@cluster0.festnla.mongodb.net/?retryWrites=true&w=majority")
 DB_NAME = os.getenv("DB_NAME", "Sun_Database_1")
 
 if not MONGO_URI or MONGO_URI.strip() == "":
