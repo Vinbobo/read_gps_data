@@ -19,8 +19,8 @@ client = MongoClient(MONGO_URI)
 db = client[DB_NAME]
 collection = db["checkins"]
 
-def filter_dataframe(df: pd.DataFrame, period: str) -> pd.DataFrame:
-    """Lọc theo tuần / tháng / năm dựa vào cột CheckinTime"""
+def filter_dataframe(df: pd.DataFrame, period: str, startDate: str = None, endDate: str = None) -> pd.DataFrame:
+    """Lọc theo tuần / tháng / năm hoặc khoảng ngày cụ thể"""
     if "CheckinTime" not in df.columns:
         return df
     
@@ -28,7 +28,14 @@ def filter_dataframe(df: pd.DataFrame, period: str) -> pd.DataFrame:
     df["CheckinTime"] = pd.to_datetime(df["CheckinTime"], errors="coerce")
     now = datetime.now()
 
-    if period == "week":
+    if startDate and endDate:
+        try:
+            start = datetime.strptime(startDate, "%Y-%m-%d")
+            end = datetime.strptime(endDate, "%Y-%m-%d") + timedelta(days=1)  # inclusive
+            df = df[(df["CheckinTime"] >= start) & (df["CheckinTime"] < end)]
+        except Exception:
+            pass
+    elif period == "week":
         start = now - timedelta(days=now.weekday())
         df = df[df["CheckinTime"] >= start]
     elif period == "month":
@@ -48,6 +55,8 @@ def index():
 def get_attendances():
     try:
         filter_param = request.args.get("filter", "all")
+        start_date = request.args.get("startDate")
+        end_date = request.args.get("endDate")
 
         data = list(collection.find({}, {
             "_id": 0,
@@ -60,8 +69,7 @@ def get_attendances():
         df = pd.DataFrame(data)
 
         if not df.empty:
-            df = filter_dataframe(df, filter_param)
-            # Chuyển lại datetime thành chuỗi
+            df = filter_dataframe(df, filter_param, start_date, end_date)
             df["CheckinTime"] = df["CheckinTime"].dt.strftime("%Y-%m-%d %H:%M:%S")
 
         return jsonify(df.to_dict(orient="records")), 200
@@ -72,6 +80,9 @@ def get_attendances():
 def export_to_excel():
     try:
         filter_param = request.args.get("filter", "all")
+        start_date = request.args.get("startDate")
+        end_date = request.args.get("endDate")
+
         data = list(collection.find({}, {
             "_id": 0,
             "EmployeeId": 1,
@@ -81,8 +92,9 @@ def export_to_excel():
             "Status": 1
         }))
         df = pd.DataFrame(data)
+
         if not df.empty:
-            df = filter_dataframe(df, filter_param)
+            df = filter_dataframe(df, filter_param, start_date, end_date)
 
         output = BytesIO()
         with pd.ExcelWriter(output, engine="openpyxl") as writer:
