@@ -21,7 +21,6 @@
   <h2>Dữ liệu chấm công GPS</h2>
 
   <div class="controls">
-    <!-- Bộ lọc nhanh -->
     <label for="quickFilter">Chọn nhanh:</label>
     <select id="quickFilter">
       <option value="all">Tất cả</option>
@@ -30,14 +29,12 @@
       <option value="year">Năm nay</option>
     </select>
 
-    <!-- Bộ lọc ngày -->
     <label for="startDate">Từ ngày:</label>
     <input type="date" id="startDate">
 
     <label for="endDate">Đến ngày:</label>
     <input type="date" id="endDate">
 
-    <!-- Đặt tên file xuất -->
     <label for="fileName">Tên file:</label>
     <input type="text" id="fileName" value="attendance_data.xlsx">
   </div>
@@ -64,7 +61,6 @@
   </table>
 
   <script>
-    // tải dữ liệu từ API Flask
     async function reloadData(startDate = "", endDate = "") {
       let url = "/data";
       if (startDate && endDate) {
@@ -89,7 +85,6 @@
       });
     }
 
-    // áp dụng lọc ngày
     function applyFilter() {
       const startDate = document.getElementById("startDate").value;
       const endDate = document.getElementById("endDate").value;
@@ -100,14 +95,12 @@
       }
     }
 
-    // huỷ lọc
     function clearFilter() {
       document.getElementById("startDate").value = "";
       document.getElementById("endDate").value = "";
       reloadData();
     }
 
-    // reset toàn bộ (lọc + tên file)
     function resetAll() {
       document.getElementById("quickFilter").value = "all";
       document.getElementById("startDate").value = "";
@@ -116,7 +109,6 @@
       reloadData();
     }
 
-    // xuất excel
     function exportExcel() {
       const startDate = document.getElementById("startDate").value;
       const endDate = document.getElementById("endDate").value;
@@ -127,7 +119,6 @@
         url += `&start=${startDate}&end=${endDate}`;
       }
 
-      // mở hộp thoại Save As
       const a = document.createElement("a");
       a.href = url;
       a.download = fileName;
@@ -136,14 +127,13 @@
       document.body.removeChild(a);
     }
 
-    // xử lý bộ lọc nhanh (tuần, tháng, năm)
     document.getElementById("quickFilter").addEventListener("change", function () {
       const today = new Date();
       let startDate = "", endDate = "";
 
       if (this.value === "week") {
         const first = today.getDate() - today.getDay() + 1;
-        startDate = new Date(today.setDate(first)).toISOString().slice(0, 10);
+        startDate = new Date(today.getFullYear(), today.getMonth(), first).toISOString().slice(0, 10);
         endDate = new Date().toISOString().slice(0, 10);
       } else if (this.value === "month") {
         startDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
@@ -163,7 +153,6 @@
       }
     });
 
-    // tự động tải dữ liệu khi load trang
     document.addEventListener("DOMContentLoaded", () => reloadData());
   </script>
 </body>
