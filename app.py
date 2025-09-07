@@ -9,7 +9,6 @@ from datetime import datetime, timedelta
 app = Flask(__name__, template_folder="templates")
 CORS(app)
 
-# 🔹 MongoDB Atlas connection string
 MONGO_URI = os.getenv(
     "MONGO_URI",
     "mongodb+srv://banhbaobeo2205:lm2hiCLXp6B0D7hq@cluster0.festnla.mongodb.net/?retryWrites=true&w=majority"
@@ -20,36 +19,37 @@ client = MongoClient(MONGO_URI)
 db = client[DB_NAME]
 collection = db["checkins"]
 
-# --- Hàm build filter Mongo ---
-def build_date_filter(period: str):
+def filter_dataframe(df: pd.DataFrame, period: str) -> pd.DataFrame:
+    """Lọc theo tuần / tháng / năm dựa vào cột CheckinTime"""
+    if "CheckinTime" not in df.columns:
+        return df
+    
+    # Convert string sang datetime
+    df["CheckinTime"] = pd.to_datetime(df["CheckinTime"], errors="coerce")
     now = datetime.now()
+
     if period == "week":
-        start = now - timedelta(days=now.weekday())   # Monday of this week
+        start = now - timedelta(days=now.weekday())
+        df = df[df["CheckinTime"] >= start]
     elif period == "month":
         start = datetime(now.year, now.month, 1)
+        df = df[df["CheckinTime"] >= start]
     elif period == "year":
         start = datetime(now.year, 1, 1)
-    else:
-        return {}
-    return {"CheckinTime": {"$gte": start.isoformat()}}  # Lưu ý: cần định dạng datetime chuẩn trong DB
+        df = df[df["CheckinTime"] >= start]
 
-# --- Trang chính ---
+    return df
+
 @app.route("/")
 def index():
     return render_template("index.html")
 
-# --- API dữ liệu chấm công ---
 @app.route("/api/attendances", methods=["GET"])
 def get_attendances():
     try:
         filter_param = request.args.get("filter", "all")
-        date_filter = build_date_filter(filter_param)
 
-        query = {}
-        if date_filter:
-            query.update(date_filter)
-
-        data = list(collection.find(query, {
+        data = list(collection.find({}, {
             "_id": 0,
             "EmployeeId": 1,
             "EmployeeName": 1,
@@ -57,23 +57,22 @@ def get_attendances():
             "CheckinTime": 1,
             "Status": 1
         }))
+        df = pd.DataFrame(data)
 
-        return jsonify(data), 200
+        if not df.empty:
+            df = filter_dataframe(df, filter_param)
+            # Chuyển lại datetime thành chuỗi
+            df["CheckinTime"] = df["CheckinTime"].dt.strftime("%Y-%m-%d %H:%M:%S")
+
+        return jsonify(df.to_dict(orient="records")), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# --- API Xuất Excel ---
 @app.route("/api/export-excel", methods=["GET"])
 def export_to_excel():
     try:
         filter_param = request.args.get("filter", "all")
-        date_filter = build_date_filter(filter_param)
-
-        query = {}
-        if date_filter:
-            query.update(date_filter)
-
-        data = list(collection.find(query, {
+        data = list(collection.find({}, {
             "_id": 0,
             "EmployeeId": 1,
             "EmployeeName": 1,
@@ -81,8 +80,10 @@ def export_to_excel():
             "CheckinTime": 1,
             "Status": 1
         }))
-
         df = pd.DataFrame(data)
+        if not df.empty:
+            df = filter_dataframe(df, filter_param)
+
         output = BytesIO()
         with pd.ExcelWriter(output, engine="openpyxl") as writer:
             df.to_excel(writer, sheet_name="Attendances", index=False)
@@ -96,7 +97,3 @@ def export_to_excel():
         )
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
