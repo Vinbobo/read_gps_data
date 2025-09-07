@@ -16,9 +16,7 @@
     .sortable:after { content: " ⇅"; font-size: 12px; }
     .asc:after { content: " ↑"; }
     .desc:after { content: " ↓"; }
-    .table-container { max-height: 400px; overflow-y: auto; border: 1px solid #ccc; }
-    .pagination { margin-top: 10px; text-align: center; }
-    .pagination button { margin: 0 3px; padding: 5px 10px; }
+    .table-container { max-height: 500px; overflow-y: auto; border: 1px solid #ccc; }
   </style>
 </head>
 <body>
@@ -49,17 +47,11 @@
     <button onclick="applySearch()">Tìm</button>
   </div>
 
-  <!-- Xuất Excel + Reset + Page size -->
+  <!-- Xuất Excel + Reset -->
   <div class="controls">
     <button onclick="exportExcel()">📥 Xuất Excel</button>
     <button onclick="loadData()">🔄 Làm mới</button>
     <button onclick="resetAll()">♻️ Reset</button>
-    <label><b>Dòng/trang:</b></label>
-    <select id="pageSize" onchange="changePageSize()">
-      <option value="10">10</option>
-      <option value="20">20</option>
-      <option value="50">50</option>
-    </select>
   </div>
 
   <!-- Bảng dữ liệu -->
@@ -78,19 +70,12 @@
     </table>
   </div>
 
-  <!-- Pagination -->
-  <div class="pagination" id="pagination"></div>
-
   <script>
     let currentFilter = "all";
     let currentStartDate = "";
     let currentEndDate = "";
     let currentSearch = "";
-
     let rawData = [];
-    let currentPage = 1;
-    let pageSize = 10;
-
     let currentSort = { column: null, order: null }; // order: "asc" | "desc" | null
 
     async function loadData() {
@@ -105,7 +90,6 @@
       const res = await fetch(url);
       rawData = await res.json();
 
-      currentPage = 1;
       renderTable();
     }
 
@@ -123,14 +107,9 @@
         });
       }
 
-      // Pagination
-      let start = (currentPage - 1) * pageSize;
-      let end = start + pageSize;
-      let pagedData = data.slice(start, end);
-
       const tbody = document.getElementById("dataBody");
       tbody.innerHTML = "";
-      pagedData.forEach(row => {
+      data.forEach(row => {
         tbody.innerHTML += `
           <tr>
             <td>${row.EmployeeId || ""}</td>
@@ -142,29 +121,7 @@
         `;
       });
 
-      renderPagination(data.length);
       updateSortIcons();
-    }
-
-    function renderPagination(totalItems) {
-      const totalPages = Math.ceil(totalItems / pageSize);
-      const pagination = document.getElementById("pagination");
-      pagination.innerHTML = "";
-
-      for (let i = 1; i <= totalPages; i++) {
-        pagination.innerHTML += `<button onclick="goToPage(${i})" ${i === currentPage ? "style='font-weight:bold;'" : ""}>${i}</button>`;
-      }
-    }
-
-    function goToPage(page) {
-      currentPage = page;
-      renderTable();
-    }
-
-    function changePageSize() {
-      pageSize = parseInt(document.getElementById("pageSize").value);
-      currentPage = 1;
-      renderTable();
     }
 
     function sortTable(column) {
@@ -231,8 +188,6 @@
       document.getElementById("startDate").value = "";
       document.getElementById("endDate").value = "";
       document.getElementById("searchBox").value = "";
-      document.getElementById("pageSize").value = "10";
-      pageSize = 10;
       loadData();
     }
 
