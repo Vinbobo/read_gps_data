@@ -3,209 +3,168 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dữ liệu chấm công</title>
+  <title>Dữ liệu chấm công GPS</title>
   <style>
     body { font-family: Arial, sans-serif; background: #f4f6f9; padding: 20px; }
-    h2 { text-align: center; }
-    .toolbar { display: flex; justify-content: space-between; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
-    .search-box { flex: 1; min-width: 200px; }
-    .filter-box { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-    input, select, button { padding: 6px 10px; font-size: 14px; border-radius: 5px; border: 1px solid #ccc; }
-    button { cursor: pointer; background: #007bff; color: #fff; border: none; }
-    button:hover { background: #0056b3; }
-    table { width: 100%; border-collapse: collapse; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; cursor: pointer; }
-    th { background: #007bff; color: #fff; user-select: none; }
-    tr:hover { background: #f1f1f1; }
-    .arrow { margin-left: 5px; font-size: 12px; }
+    h2 { color: #333; }
+    .controls { margin-bottom: 15px; }
+    .controls input, .controls select, .controls button {
+      margin: 5px; padding: 6px; font-size: 14px;
+    }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #fff; }
+    table, th, td { border: 1px solid #ccc; }
+    th, td { padding: 8px; text-align: center; }
+    th { background: #eee; }
   </style>
 </head>
 <body>
-  <h2>📌 Dữ liệu chấm công GPS</h2>
+  <h2>Dữ liệu chấm công GPS</h2>
 
-  <div class="toolbar">
-    <div class="search-box">
-      <input type="text" id="searchInput" placeholder="🔍 Tìm kiếm theo tên hoặc mã NV..." onkeyup="searchTable()">
-    </div>
+  <div class="controls">
+    <!-- Bộ lọc nhanh -->
+    <label for="quickFilter">Chọn nhanh:</label>
+    <select id="quickFilter">
+      <option value="all">Tất cả</option>
+      <option value="week">Tuần này</option>
+      <option value="month">Tháng này</option>
+      <option value="year">Năm nay</option>
+    </select>
 
-    <div class="filter-box">
-      <label>Từ:</label>
-      <input type="date" id="startDate">
-      <label>Đến:</label>
-      <input type="date" id="endDate">
+    <!-- Bộ lọc ngày -->
+    <label for="startDate">Từ ngày:</label>
+    <input type="date" id="startDate">
 
-      <button onclick="applyDateFilter()">📅 Lọc</button>
-      <button onclick="clearDateFilter()">❌ Huỷ lọc</button>
-      <button onclick="resetAll()">🔄 Làm mới</button>
-    </div>
+    <label for="endDate">Đến ngày:</label>
+    <input type="date" id="endDate">
+
+    <!-- Đặt tên file xuất -->
+    <label for="fileName">Tên file:</label>
+    <input type="text" id="fileName" value="attendance_data.xlsx">
   </div>
 
-  <div class="toolbar">
-    <label>📁 Tên file:</label>
-    <input type="text" id="fileName" placeholder="attendance_data.xlsx" style="min-width:200px;">
-    <button onclick="exportToExcel()">📥 Xuất Excel</button>
+  <div class="controls">
+    <button onclick="applyFilter()">Lọc</button>
+    <button onclick="clearFilter()">Huỷ lọc</button>
+    <button onclick="resetAll()">Làm mới</button>
+    <button onclick="exportExcel()">Xuất Excel</button>
   </div>
 
   <table id="attendanceTable">
     <thead>
       <tr>
-        <th data-key="EmployeeId">Mã NV <span class="arrow"></span></th>
-        <th data-key="EmployeeName">Tên nhân viên <span class="arrow"></span></th>
-        <th data-key="Address">Địa chỉ <span class="arrow"></span></th>
-        <th data-key="CheckinTime">Thời gian chấm công <span class="arrow"></span></th>
-        <th data-key="Status">Trạng thái <span class="arrow"></span></th>
+        <th>Mã NV</th>
+        <th>Tên NV</th>
+        <th>Check-in</th>
+        <th>Latitude</th>
+        <th>Longitude</th>
+        <th>Trạng thái</th>
       </tr>
     </thead>
     <tbody></tbody>
   </table>
 
   <script>
-    let tableData = [];
-    let currentSort = { key: null, order: null };
+    // tải dữ liệu từ API Flask
+    async function reloadData(startDate = "", endDate = "") {
+      let url = "/data";
+      if (startDate && endDate) {
+        url += `?start=${startDate}&end=${endDate}`;
+      }
+      const res = await fetch(url);
+      const data = await res.json();
 
-    function renderTable(data) {
-      const tbody = document.querySelector('#attendanceTable tbody');
-      tbody.innerHTML = '';
+      const tbody = document.querySelector("#attendanceTable tbody");
+      tbody.innerHTML = "";
       data.forEach(row => {
-        const tr = document.createElement('tr');
+        const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td>${row.EmployeeId || ''}</td>
-          <td>${row.EmployeeName || ''}</td>
-          <td>${row.Address || ''}</td>
-          <td>${row.CheckinTime || ''}</td>
-          <td>${row.Status || ''}</td>
+          <td>${row.EmployeeId}</td>
+          <td>${row.EmployeeName}</td>
+          <td>${row.CheckInTime}</td>
+          <td>${row.Latitude}</td>
+          <td>${row.Longitude}</td>
+          <td>${row.Status}</td>
         `;
         tbody.appendChild(tr);
       });
     }
 
-    function reloadData() {
-      const filter = document.getElementById('timeFilter').value;
-      let url = `/api/attendances?filter=${filter}`;
-
-      fetch(url)
-        .then(response => response.json())
-        .then(data => {
-          tableData = data;
-          renderTable(tableData);
-        })
-        .catch(error => console.error('Error:', error));
-    }
-
-    function applyDateFilter() {
-      const startDate = document.getElementById('startDate').value;
-      const endDate = document.getElementById('endDate').value;
-      if (!startDate || !endDate) {
-        alert("Vui lòng chọn đủ cả Từ ngày và Đến ngày!");
-        return;
-      }
-      let url = `/api/attendances?startDate=${startDate}&endDate=${endDate}`;
-      fetch(url)
-        .then(response => response.json())
-        .then(data => {
-          tableData = data;
-          renderTable(tableData);
-        })
-        .catch(error => console.error('Error:', error));
-    }
-
-    function clearDateFilter() {
-      document.getElementById('startDate').value = "";
-      document.getElementById('endDate').value = "";
-      reloadData();
-    }
-
-    function resetAll() {
-      document.getElementById('searchInput').value = "";
-      document.getElementById('startDate').value = "";
-      document.getElementById('endDate').value = "";
-      document.getElementById('timeFilter').value = "all";
-      clearSortIndicators();
-      currentSort = { key: null, order: null };
-      reloadData();
-    }
-
-    function exportToExcel() {
-      const filter = document.getElementById('timeFilter').value;
-      const startDate = document.getElementById('startDate').value;
-      const endDate = document.getElementById('endDate').value;
-
-      let url = `/api/export-excel?filter=${filter}`;
+    // áp dụng lọc ngày
+    function applyFilter() {
+      const startDate = document.getElementById("startDate").value;
+      const endDate = document.getElementById("endDate").value;
       if (startDate && endDate) {
-        url += `&startDate=${startDate}&endDate=${endDate}`;
-      }
-
-      fetch(url, { method: 'GET' })
-        .then(response => response.blob())
-        .then(blob => {
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-
-          // 👇 Lấy tên file người dùng nhập, mặc định là attendance_data.xlsx
-          let fileName = document.getElementById('fileName').value.trim();
-          if (!fileName) fileName = "attendance_data.xlsx";
-          if (!fileName.endsWith(".xlsx")) fileName += ".xlsx";
-
-          a.download = fileName;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          window.URL.revokeObjectURL(url);
-        })
-        .catch(error => console.error('Error exporting:', error));
-    }
-
-    function searchTable() {
-      const keyword = document.getElementById('searchInput').value.toLowerCase();
-      const filtered = tableData.filter(row =>
-        (row.EmployeeId && row.EmployeeId.toString().toLowerCase().includes(keyword)) ||
-        (row.EmployeeName && row.EmployeeName.toLowerCase().includes(keyword))
-      );
-      renderTable(filtered);
-    }
-
-    function sortTable(key) {
-      if (currentSort.key === key) {
-        if (currentSort.order === 'asc') currentSort.order = 'desc';
-        else if (currentSort.order === 'desc') currentSort.order = null;
-        else currentSort.order = 'asc';
+        reloadData(startDate, endDate);
       } else {
-        currentSort.key = key;
-        currentSort.order = 'asc';
+        alert("Vui lòng chọn đủ khoảng thời gian!");
       }
-
-      clearSortIndicators();
-      const th = document.querySelector(`th[data-key="${key}"] .arrow`);
-      if (currentSort.order === 'asc') th.textContent = "⬆️";
-      else if (currentSort.order === 'desc') th.textContent = "⬇️";
-      else th.textContent = "";
-
-      let sortedData = [...tableData];
-      if (currentSort.order) {
-        sortedData.sort((a, b) => {
-          let valA = a[key] || "";
-          let valB = b[key] || "";
-          if (typeof valA === 'string') valA = valA.toLowerCase();
-          if (typeof valB === 'string') valB = valB.toLowerCase();
-          if (valA < valB) return currentSort.order === 'asc' ? -1 : 1;
-          if (valA > valB) return currentSort.order === 'asc' ? 1 : -1;
-          return 0;
-        });
-      }
-      renderTable(sortedData);
     }
 
-    function clearSortIndicators() {
-      document.querySelectorAll('.arrow').forEach(span => span.textContent = "");
-    }
-
-    document.addEventListener("DOMContentLoaded", () => {
-      document.querySelectorAll("th[data-key]").forEach(th => {
-        th.addEventListener("click", () => sortTable(th.getAttribute("data-key")));
-      });
+    // huỷ lọc
+    function clearFilter() {
+      document.getElementById("startDate").value = "";
+      document.getElementById("endDate").value = "";
       reloadData();
+    }
+
+    // reset toàn bộ (lọc + tên file)
+    function resetAll() {
+      document.getElementById("quickFilter").value = "all";
+      document.getElementById("startDate").value = "";
+      document.getElementById("endDate").value = "";
+      document.getElementById("fileName").value = "attendance_data.xlsx";
+      reloadData();
+    }
+
+    // xuất excel
+    function exportExcel() {
+      const startDate = document.getElementById("startDate").value;
+      const endDate = document.getElementById("endDate").value;
+      const fileName = document.getElementById("fileName").value || "attendance_data.xlsx";
+
+      let url = `/export?file_name=${encodeURIComponent(fileName)}`;
+      if (startDate && endDate) {
+        url += `&start=${startDate}&end=${endDate}`;
+      }
+
+      // mở hộp thoại Save As
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    // xử lý bộ lọc nhanh (tuần, tháng, năm)
+    document.getElementById("quickFilter").addEventListener("change", function () {
+      const today = new Date();
+      let startDate = "", endDate = "";
+
+      if (this.value === "week") {
+        const first = today.getDate() - today.getDay() + 1;
+        startDate = new Date(today.setDate(first)).toISOString().slice(0, 10);
+        endDate = new Date().toISOString().slice(0, 10);
+      } else if (this.value === "month") {
+        startDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
+        endDate = new Date().toISOString().slice(0, 10);
+      } else if (this.value === "year") {
+        startDate = new Date(today.getFullYear(), 0, 1).toISOString().slice(0, 10);
+        endDate = new Date().toISOString().slice(0, 10);
+      }
+
+      document.getElementById("startDate").value = startDate;
+      document.getElementById("endDate").value = endDate;
+
+      if (this.value === "all") {
+        reloadData();
+      } else {
+        reloadData(startDate, endDate);
+      }
     });
+
+    // tự động tải dữ liệu khi load trang
+    document.addEventListener("DOMContentLoaded", () => reloadData());
   </script>
 </body>
 </html>
