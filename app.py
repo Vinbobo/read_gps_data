@@ -11,7 +11,10 @@ app = Flask(__name__, template_folder="templates")
 CORS(app)
 
 # ---- Load MONGO_URI từ biến môi trường ----
-MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://banhbaobeo2205:lm2hiCLXp6B0D7hq@cluster0.festnla.mongodb.net/?retryWrites=true&w=majority")
+MONGO_URI = os.getenv(
+    "MONGO_URI",
+    "mongodb+srv://banhbaobeo2205:lm2hiCLXp6B0D7hq@cluster0.festnla.mongodb.net/?retryWrites=true&w=majority"
+)
 DB_NAME = os.getenv("DB_NAME", "Sun_Database_1")
 
 if not MONGO_URI or MONGO_URI.strip() == "":
@@ -25,33 +28,47 @@ try:
 except Exception as e:
     raise RuntimeError(f"❌ Không thể kết nối MongoDB: {e}")
 
+
 # ---- Helper function ----
 def build_query(filter_type, start_date, end_date):
     query = {}
+    today = datetime.now()
+
+    # Nếu có khoảng ngày custom
     if start_date and end_date:
-        query["CheckinTime"] = {"$gte": start_date, "$lte": end_date}
+        try:
+            start = datetime.strptime(start_date, "%Y-%m-%d")
+            end = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1) - timedelta(seconds=1)
+            query["CheckinTime"] = {"$gte": start, "$lte": end}
+        except ValueError:
+            pass
         return query
 
-    today = datetime.now()
+    # Lọc nhanh theo tuần/tháng/năm
     if filter_type == "week":
-        start = today - timedelta(days=today.weekday())
-        end = start + timedelta(days=6)
-        query["CheckinTime"] = {"$gte": start.strftime("%Y-%m-%d"), "$lte": end.strftime("%Y-%m-%d")}
+        start = today - timedelta(days=today.weekday())  # Monday
+        end = start + timedelta(days=6)  # Sunday
+        query["CheckinTime"] = {"$gte": start, "$lte": end}
+
     elif filter_type == "month":
         start = today.replace(day=1)
         last_day = calendar.monthrange(today.year, today.month)[1]
-        end = today.replace(day=last_day)
-        query["CheckinTime"] = {"$gte": start.strftime("%Y-%m-%d"), "$lte": end.strftime("%Y-%m-%d")}
+        end = today.replace(day=last_day, hour=23, minute=59, second=59)
+        query["CheckinTime"] = {"$gte": start, "$lte": end}
+
     elif filter_type == "year":
         start = today.replace(month=1, day=1)
-        end = today.replace(month=12, day=31)
-        query["CheckinTime"] = {"$gte": start.strftime("%Y-%m-%d"), "$lte": end.strftime("%Y-%m-%d")}
+        end = today.replace(month=12, day=31, hour=23, minute=59, second=59)
+        query["CheckinTime"] = {"$gte": start, "$lte": end}
+
     return query
+
 
 # ---- API routes ----
 @app.route("/")
 def index():
     return render_template("index.html")
+
 
 @app.route("/api/attendances", methods=["GET"])
 def get_attendances():
@@ -70,9 +87,16 @@ def get_attendances():
             "CheckinTime": 1,
             "Status": 1
         }))
+
+        # Convert datetime -> string để hiển thị
+        for d in data:
+            if isinstance(d.get("CheckinTime"), datetime):
+                d["CheckinTime"] = d["CheckinTime"].strftime("%Y-%m-%d %H:%M:%S")
+
         return jsonify(data), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route("/api/export-excel", methods=["GET"])
 def export_to_excel():
@@ -91,12 +115,18 @@ def export_to_excel():
             "Status": 1
         }))
 
+        # Convert datetime -> string trước khi export
+        for d in data:
+            if isinstance(d.get("CheckinTime"), datetime):
+                d["CheckinTime"] = d["CheckinTime"].strftime("%Y-%m-%d %H:%M:%S")
+
         df = pd.DataFrame(data)
         output = BytesIO()
         with pd.ExcelWriter(output, engine="openpyxl") as writer:
             df.to_excel(writer, sheet_name="Attendances", index=False)
         output.seek(0)
 
+        # Tạo tên file động
         if start_date and end_date:
             filename = f"attendance_{start_date}_to_{end_date}.xlsx"
         else:
@@ -111,5 +141,6 @@ def export_to_excel():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=5000, debug=True)
