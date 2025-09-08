@@ -137,11 +137,11 @@ def export_to_excel():
 
         # Tạo tên file động
         if start_date and end_date:
-            filename = f"attendance_{start_date}_to_{end_date}.xlsx"
+            filename = f"Danh sách chấm công_{start_date}_to_{end_date}.xlsx"
         elif search:
-            filename = f"attendance_{search}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+            filename = f"Danh sách chấm công_{search}_{datetime.now().strftime('%Y%m%d')}.xlsx"
         else:
-            filename = f"attendance_{filter_type}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+            filename = f"Danh sách chấm công_{filter_type}_{datetime.now().strftime('%Y%m%d')}.xlsx"
 
         return send_file(
             output,
