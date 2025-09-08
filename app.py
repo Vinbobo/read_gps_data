@@ -4,12 +4,15 @@ from flask_cors import CORS
 import os
 import pandas as pd
 from io import BytesIO
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import calendar
 import re
 
 app = Flask(__name__, template_folder="templates")
 CORS(app)
+
+# ---- Timezone VN ----
+VN_TZ = timezone(timedelta(hours=7))
 
 # ---- Load MONGO_URI từ biến môi trường ----
 MONGO_URI = os.getenv(
@@ -93,10 +96,10 @@ def get_attendances():
             "Status": 1
         }))
 
-        # Convert datetime -> string để hiển thị
+        # Convert datetime -> string theo giờ VN (dd/MM/yyyy HH:mm:ss)
         for d in data:
             if isinstance(d.get("CheckinTime"), datetime):
-                d["CheckinTime"] = d["CheckinTime"].strftime("%Y-%m-%d %H:%M:%S")
+                d["CheckinTime"] = d["CheckinTime"].astimezone(VN_TZ).strftime("%d/%m/%Y %H:%M:%S")
 
         return jsonify(data), 200
     except Exception as e:
@@ -121,10 +124,10 @@ def export_to_excel():
             "Status": 1
         }))
 
-        # Convert datetime -> string trước khi export
+        # Convert datetime -> string theo giờ VN (dd/MM/yyyy HH:mm:ss)
         for d in data:
             if isinstance(d.get("CheckinTime"), datetime):
-                d["CheckinTime"] = d["CheckinTime"].strftime("%Y-%m-%d %H:%M:%S")
+                d["CheckinTime"] = d["CheckinTime"].astimezone(VN_TZ).strftime("%d/%m/%Y %H:%M:%S")
 
         df = pd.DataFrame(data)
         output = BytesIO()
