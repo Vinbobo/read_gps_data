@@ -139,9 +139,9 @@ def export_to_excel():
         if start_date and end_date:
             filename = f"Danh sách chấm công_{start_date}_to_{end_date}.xlsx"
         elif search:
-            filename = f"Danh sách chấm công_{search}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+            filename = f"Danh sách chấm công_{search}_{datetime.now().strftime('%d/%m/%Y')}.xlsx"
         else:
-            filename = f"Danh sách chấm công_{filter_type}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+            filename = f"Danh sách chấm công_{filter_type}_{datetime.now().strftime('%d/%m/%Y')}.xlsx"
 
         return send_file(
             output,
