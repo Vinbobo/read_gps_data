@@ -28,7 +28,7 @@ if not MONGO_URI or MONGO_URI.strip() == "":
 try:
     client = MongoClient(MONGO_URI)
     db = client[DB_NAME]
-    collection = db["checkins"]
+    collection = db["alt_checkins"]
 except Exception as e:
     raise RuntimeError(f"❌ Không thể kết nối MongoDB: {e}")
 
