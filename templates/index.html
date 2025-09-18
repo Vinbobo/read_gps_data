@@ -64,6 +64,7 @@
           <th class="sortable" onclick="sortTable('Address')">Địa chỉ</th>
           <th class="sortable" onclick="sortTable('CheckinTime')">Thời gian Check-in</th>
           <th class="sortable" onclick="sortTable('Status')">Trạng thái</th>
+          <th class="sortable" onclick="sortTable('Status')">Hình ảnh</th>
         </tr>
       </thead>
       <tbody id="dataBody"></tbody>
@@ -111,11 +112,14 @@
       data.forEach(row => {
         tbody.innerHTML += `
           <tr>
-            <td>${row.EmployeeId || ""}</td>
-            <td>${row.EmployeeName || ""}</td>
-            <td>${row.Address || ""}</td>
-            <td>${row.CheckinTime || ""}</td>
-            <td>${row.Status || ""}</td>
+              <td>${row.EmployeeId || ""}</td>
+              <td>${row.EmployeeName || ""}</td>
+              <td>${row.Address || ""}</td>
+              <td>${row.CheckinTime || ""}</td>
+              <td>${row.Status || ""}</td>
+              <td>
+                ${row.FaceImage ? `<img src="${row.FaceImage}" width="80" height="60" style="object-fit:cover;border-radius:4px;">` : ""}
+              </td>
           </tr>
         `;
       });
