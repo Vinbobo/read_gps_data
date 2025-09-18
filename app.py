@@ -93,7 +93,8 @@ def get_attendances():
             "EmployeeName": 1,
             "Address": 1,
             "CheckinTime": 1,
-            "Status": 1
+            "Status": 1,
+            "FaceImage": 1   # thêm cột ảnh
         }))
 
         # Convert datetime -> string theo giờ VN (dd/MM/yyyy HH:mm:ss)
