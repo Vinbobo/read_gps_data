@@ -3,201 +3,125 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dữ liệu chấm công GPS</title>
+  <title>Dữ liệu chấm công</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <style>
-    body { font-family: Arial, sans-serif; background: #f4f6f9; padding: 20px; }
-    h2 { text-align: center; }
-    .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
-    .controls input, .controls select, .controls button { padding: 6px 10px; font-size: 14px; }
-    .table-container { max-height: 500px; overflow-y: auto; border: 1px solid #ccc; }
-    table { width: 100%; border-collapse: collapse; background: white; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-    th { background: #007bff; color: white; cursor: pointer; user-select: none; position: sticky; top: 0; z-index: 2; }
-    tr:nth-child(even) { background: #f2f2f2; }
-    .sortable:after { content: " ⇅"; font-size: 12px; }
-    .asc:after { content: " ↑"; }
-    .desc:after { content: " ↓"; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { cursor: pointer; background: #f5f5f5; }
+    img { max-width: 60px; border-radius: 5px; }
   </style>
 </head>
 <body>
-  <h2>📌 Dữ liệu chấm công GPS</h2>
+  <h2>📋 Dữ liệu chấm công</h2>
 
-  <!-- Bộ lọc nhanh -->
-  <div class="controls">
-    <label><b>Lọc nhanh:</b></label>
-    <button onclick="applyFilter('week')">Tuần này</button>
-    <button onclick="applyFilter('month')">Tháng này</button>
-    <button onclick="applyFilter('year')">Năm nay</button>
-    <button onclick="applyFilter('all')">Tất cả</button>
-  </div>
-
-  <!-- Lọc theo khoảng ngày -->
-  <div class="controls">
-    <label><b>Từ ngày:</b></label>
+  <div>
+    <label>Lọc: 
+      <select id="filterSelect">
+        <option value="">Tất cả</option>
+        <option value="week">Tuần này</option>
+        <option value="month">Tháng này</option>
+        <option value="year">Năm nay</option>
+        <option value="custom">Khoảng ngày</option>
+      </select>
+    </label>
     <input type="date" id="startDate">
-    <label><b>Đến ngày:</b></label>
     <input type="date" id="endDate">
-    <button onclick="applyDateRange()">Áp dụng</button>
+    <button onclick="applyDateRange()">Lọc</button>
+    <input type="text" id="searchInput" placeholder="Tìm theo tên..." oninput="fetchData()">
   </div>
 
-  <!-- Tìm kiếm -->
-  <div class="controls">
-    <label><b>Tìm kiếm:</b></label>
-    <input type="text" id="searchBox" placeholder="Nhập tên nhân viên...">
-    <button onclick="applySearch()">Tìm</button>
-  </div>
-
-  <!-- Xuất Excel + Reset -->
-  <div class="controls">
-    <button onclick="exportExcel()">📥 Xuất Excel</button>
-    <button onclick="loadData()">🔄 Làm mới</button>
-    <button onclick="resetAll()">♻️ Reset</button>
-  </div>
-
-  <!-- Bảng dữ liệu -->
-  <div class="table-container">
-    <table>
-      <thead>
-        <tr>
-          <th class="sortable" onclick="sortTable('EmployeeId')">Mã NV</th>
-          <th class="sortable" onclick="sortTable('EmployeeName')">Tên nhân viên</th>
-          <th class="sortable" onclick="sortTable('Address')">Địa chỉ</th>
-          <th class="sortable" onclick="sortTable('CheckinTime')">Thời gian Check-in</th>
-          <th class="sortable" onclick="sortTable('Shift')">Ca làm việc</th>
-          <th class="sortable" onclick="sortTable('Status')">Trạng thái</th>
-          <th class="sortable" onclick="sortTable('FaceImage')">Hình ảnh</th>
-        </tr>
-      </thead>
-      <tbody id="dataBody"></tbody>
-    </table>
-  </div>
+  <table id="checkinTable">
+    <thead>
+      <tr>
+        <th onclick="sortTable('EmployeeId')">Mã NV</th>
+        <th onclick="sortTable('EmployeeName')">Tên nhân viên</th>
+        <th>Phòng ban</th>
+        <th>Chức vụ</th>
+        <th>Địa chỉ</th>
+        <th onclick="sortTable('Shift')">Ca</th>
+        <th onclick="sortTable('CheckinTime')">Thời gian</th>
+        <th>Trạng thái</th>
+        <th>Ảnh</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 
   <script>
-    let currentFilter = "all";
-    let currentStartDate = "";
-    let currentEndDate = "";
-    let currentSearch = "";
-    let rawData = [];
+    let currentFilter = "";
     let currentSort = { column: null, order: null };
 
-    async function loadData() {
-      let url = `/api/attendances?filter=${currentFilter}`;
-      if (currentStartDate && currentEndDate) {
-        url += `&startDate=${currentStartDate}&endDate=${currentEndDate}`;
-      }
-      if (currentSearch) {
-        url += `&search=${encodeURIComponent(currentSearch)}`;
+    async function fetchData() {
+      const search = document.getElementById("searchInput").value;
+      const startDate = document.getElementById("startDate").value;
+      const endDate = document.getElementById("endDate").value;
+      let url = `/api/checkins?filter=${currentFilter}&search=${search}`;
+      if (currentFilter === "custom" && startDate && endDate) {
+        url += `&startDate=${startDate}&endDate=${endDate}`;
       }
 
       const res = await fetch(url);
-      rawData = await res.json();
-
-      renderTable();
+      const data = await res.json();
+      renderTable(data);
     }
 
-    function renderTable() {
-      let data = [...rawData];
+    function applyDateRange() {
+      currentFilter = document.getElementById("filterSelect").value;
+      fetchData();
+    }
 
+    function sortTable(column) {
+      if (currentSort.column === column) {
+        currentSort.order = currentSort.order === "asc" ? "desc" : (currentSort.order === "desc" ? null : "asc");
+      } else {
+        currentSort.column = column;
+        currentSort.order = "asc";
+      }
+      fetchData();
+    }
+
+    function renderTable(data) {
       if (currentSort.column && currentSort.order) {
         data.sort((a, b) => {
           let valA = a[currentSort.column] || "";
           let valB = b[currentSort.column] || "";
+
+          if (currentSort.column === "CheckinTime") {
+            // parse dd/MM/yyyy HH:mm:ss → Date
+            const parseDate = str => {
+              if (!str) return new Date(0);
+              const [d, t] = str.split(" ");
+              const [day, month, year] = d.split("/");
+              return new Date(`${year}-${month}-${day}T${t}`);
+            };
+            valA = parseDate(valA);
+            valB = parseDate(valB);
+          }
+
           if (currentSort.order === "asc") return valA > valB ? 1 : -1;
           if (currentSort.order === "desc") return valA < valB ? 1 : -1;
           return 0;
         });
       }
 
-      const tbody = document.getElementById("dataBody");
+      const tbody = document.querySelector("#checkinTable tbody");
       tbody.innerHTML = "";
       data.forEach(row => {
-        tbody.innerHTML += `
-          <tr>
-              <td>${row.EmployeeId || ""}</td>
-              <td>${row.EmployeeName || ""}</td>
-              <td>${row.Address || ""}</td>
-              <td>${row.CheckinTime || ""}</td>
-              <td>${row.Shift || ""}</td>
-              <td>${row.Status || ""}</td>
-              <td>
-                ${row.FaceImage ? `<img src="${row.FaceImage}" width="80" height="60" style="object-fit:cover;border-radius:4px;">` : ""}
-              </td>
-          </tr>
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${row.EmployeeId || ""}</td>
+          <td>${row.Address || ""}</td>
+          <td>${row.Shift || ""}</td>
+          <td>${row.CheckinTime || ""}</td>
+          <td>${row.Status || ""}</td>
+          <td>${row.FaceImage ? `<img src="${row.FaceImage}" />` : ""}</td>
         `;
+        tbody.appendChild(tr);
       });
-
-      updateSortIcons();
     }
 
-    function sortTable(column) {
-      if (currentSort.column === column) {
-        if (currentSort.order === "asc") {
-          currentSort.order = "desc";
-        } else if (currentSort.order === "desc") {
-          currentSort.order = null;
-          currentSort.column = null;
-        } else {
-          currentSort.order = "asc";
-        }
-      } else {
-        currentSort.column = column;
-        currentSort.order = "asc";
-      }
-      renderTable();
-    }
-
-    function updateSortIcons() {
-      document.querySelectorAll("th.sortable").forEach(th => th.classList.remove("asc", "desc"));
-      if (currentSort.column && currentSort.order) {
-        const th = document.querySelector(`th.sortable[onclick="sortTable('${currentSort.column}')"]`);
-        if (th) th.classList.add(currentSort.order);
-      }
-    }
-
-    function applyFilter(type) {
-      currentFilter = type;
-      currentStartDate = "";
-      currentEndDate = "";
-      loadData();
-    }
-
-    function applyDateRange() {
-      currentStartDate = document.getElementById("startDate").value;
-      currentEndDate = document.getElementById("endDate").value;
-      currentFilter = "custom";
-      loadData();
-    }
-
-    function applySearch() {
-      currentSearch = document.getElementById("searchBox").value;
-      loadData();
-    }
-
-    function exportExcel() {
-      let url = `/api/export-excel?filter=${currentFilter}`;
-      if (currentStartDate && currentEndDate) {
-        url += `&startDate=${currentStartDate}&endDate=${currentEndDate}`;
-      }
-      if (currentSearch) {
-        url += `&search=${encodeURIComponent(currentSearch)}`;
-      }
-      window.location.href = url;
-    }
-
-    function resetAll() {
-      currentFilter = "all";
-      currentStartDate = "";
-      currentEndDate = "";
-      currentSearch = "";
-      currentSort = { column: null, order: null };
-      document.getElementById("startDate").value = "";
-      document.getElementById("endDate").value = "";
-      document.getElementById("searchBox").value = "";
-      loadData();
-    }
-
-    loadData();
-    setInterval(loadData, 60000);
+    fetchData();
   </script>
 </body>
 </html>
