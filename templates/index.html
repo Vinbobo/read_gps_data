@@ -17,12 +17,12 @@
     .sortable:after { content: " ⇅"; font-size: 12px; }
     .asc:after { content: " ↑"; }
     .desc:after { content: " ↓"; }
+    img.face { object-fit: cover; border-radius: 4px; border:1px solid #ccc; }
   </style>
 </head>
 <body>
   <h2>📌 Dữ liệu chấm công GPS</h2>
 
-  <!-- Bộ lọc nhanh -->
   <div class="controls">
     <label><b>Lọc nhanh:</b></label>
     <button onclick="applyFilter('week')">Tuần này</button>
@@ -31,7 +31,6 @@
     <button onclick="applyFilter('all')">Tất cả</button>
   </div>
 
-  <!-- Lọc theo khoảng ngày -->
   <div class="controls">
     <label><b>Từ ngày:</b></label>
     <input type="date" id="startDate">
@@ -40,21 +39,18 @@
     <button onclick="applyDateRange()">Áp dụng</button>
   </div>
 
-  <!-- Tìm kiếm -->
   <div class="controls">
     <label><b>Tìm kiếm:</b></label>
     <input type="text" id="searchBox" placeholder="Nhập tên nhân viên...">
     <button onclick="applySearch()">Tìm</button>
   </div>
 
-  <!-- Xuất Excel + Reset -->
   <div class="controls">
     <button onclick="exportExcel()">📥 Xuất Excel</button>
     <button onclick="loadData()">🔄 Làm mới</button>
     <button onclick="resetAll()">♻️ Reset</button>
   </div>
 
-  <!-- Bảng dữ liệu -->
   <div class="table-container">
     <table>
       <thead>
@@ -73,31 +69,21 @@
   </div>
 
   <script>
-    let currentFilter = "all";
-    let currentStartDate = "";
-    let currentEndDate = "";
-    let currentSearch = "";
-    let rawData = [];
-    let currentSort = { column: null, order: null };
+    let currentFilter = "all", currentStartDate = "", currentEndDate = "", currentSearch = "";
+    let rawData = [], currentSort = { column: null, order: null };
 
     async function loadData() {
       let url = `/api/attendances?filter=${currentFilter}`;
-      if (currentStartDate && currentEndDate) {
-        url += `&startDate=${currentStartDate}&endDate=${currentEndDate}`;
-      }
-      if (currentSearch) {
-        url += `&search=${encodeURIComponent(currentSearch)}`;
-      }
+      if (currentStartDate && currentEndDate) url += `&startDate=${currentStartDate}&endDate=${currentEndDate}`;
+      if (currentSearch) url += `&search=${encodeURIComponent(currentSearch)}`;
 
       const res = await fetch(url);
       rawData = await res.json();
-
       renderTable();
     }
 
     function renderTable() {
       let data = [...rawData];
-
       if (currentSort.column && currentSort.order) {
         data.sort((a, b) => {
           let valA = a[currentSort.column] || "";
@@ -113,32 +99,23 @@
       data.forEach(row => {
         tbody.innerHTML += `
           <tr>
-              <td>${row.EmployeeId || ""}</td>
-              <td>${row.EmployeeName || ""}</td>
-              <td>${row.Address || ""}</td>
-              <td>${row.CheckinTime || ""}</td>
-              <td>${row.Shift || ""}</td>
-              <td>${row.Status || ""}</td>
-              <td>
-                ${row.FaceImage ? `<img src="${row.FaceImage}" width="80" height="60" style="object-fit:cover;border-radius:4px;">` : ""}
-              </td>
-          </tr>
-        `;
+            <td>${row.EmployeeId || ""}</td>
+            <td>${row.EmployeeName || ""}</td>
+            <td>${row.Address || ""}</td>
+            <td>${row.CheckinTime || ""}</td>
+            <td>${row.Shift || ""}</td>
+            <td>${row.Status || ""}</td>
+            <td>${row.FaceImage ? `<img src="${row.FaceImage}" width="80" height="60" class="face">` : ""}</td>
+          </tr>`;
       });
-
       updateSortIcons();
     }
 
     function sortTable(column) {
       if (currentSort.column === column) {
-        if (currentSort.order === "asc") {
-          currentSort.order = "desc";
-        } else if (currentSort.order === "desc") {
-          currentSort.order = null;
-          currentSort.column = null;
-        } else {
-          currentSort.order = "asc";
-        }
+        currentSort.order = currentSort.order === "asc" ? "desc" :
+                           currentSort.order === "desc" ? null : "asc";
+        if (!currentSort.order) currentSort.column = null;
       } else {
         currentSort.column = column;
         currentSort.order = "asc";
@@ -155,40 +132,26 @@
     }
 
     function applyFilter(type) {
-      currentFilter = type;
-      currentStartDate = "";
-      currentEndDate = "";
+      currentFilter = type; currentStartDate = ""; currentEndDate = "";
       loadData();
     }
 
     function applyDateRange() {
       currentStartDate = document.getElementById("startDate").value;
       currentEndDate = document.getElementById("endDate").value;
-      currentFilter = "custom";
-      loadData();
+      currentFilter = "custom"; loadData();
     }
 
-    function applySearch() {
-      currentSearch = document.getElementById("searchBox").value;
-      loadData();
-    }
-
+    function applySearch() { currentSearch = document.getElementById("searchBox").value; loadData(); }
     function exportExcel() {
       let url = `/api/export-excel?filter=${currentFilter}`;
-      if (currentStartDate && currentEndDate) {
-        url += `&startDate=${currentStartDate}&endDate=${currentEndDate}`;
-      }
-      if (currentSearch) {
-        url += `&search=${encodeURIComponent(currentSearch)}`;
-      }
+      if (currentStartDate && currentEndDate) url += `&startDate=${currentStartDate}&endDate=${currentEndDate}`;
+      if (currentSearch) url += `&search=${encodeURIComponent(currentSearch)}`;
       window.location.href = url;
     }
 
     function resetAll() {
-      currentFilter = "all";
-      currentStartDate = "";
-      currentEndDate = "";
-      currentSearch = "";
+      currentFilter = "all"; currentStartDate = ""; currentEndDate = ""; currentSearch = "";
       currentSort = { column: null, order: null };
       document.getElementById("startDate").value = "";
       document.getElementById("endDate").value = "";
