@@ -93,6 +93,7 @@ def get_attendances():
             "EmployeeName": 1,
             "Address": 1,
             "CheckinTime": 1,
+            "Shift": 1,
             "Status": 1,
             "FaceImage": 1   # thêm cột ảnh
         }))
@@ -122,6 +123,7 @@ def export_to_excel():
             "EmployeeName": 1,
             "Address": 1,
             "CheckinTime": 1,
+            "Shift": 1,
             "Status": 1
         }))
 
