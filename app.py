@@ -33,16 +33,15 @@ except Exception as e:
     raise RuntimeError(f"❌ Không thể kết nối MongoDB: {e}")
 
 
-# ---- Helper function ----
 def build_query(filter_type, start_date, end_date, search):
     query = {}
-    today = datetime.now(VN_TZ)
+    today = datetime.utcnow()   # dùng UTC để đồng bộ với MongoDB
 
     # --- Lọc custom ---
     if filter_type == "custom" and start_date and end_date:
         try:
-            start = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=VN_TZ)
-            end = datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=VN_TZ) + timedelta(days=1) - timedelta(seconds=1)
+            start = datetime.strptime(start_date, "%Y-%m-%d")
+            end = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1) - timedelta(seconds=1)
             query["CheckinTime"] = {"$gte": start, "$lte": end}
         except ValueError:
             pass
@@ -72,6 +71,7 @@ def build_query(filter_type, start_date, end_date, search):
         query["EmployeeName"] = {"$regex": re.compile(search, re.IGNORECASE)}
 
     return query
+
 
 
 # ---- API routes ----
