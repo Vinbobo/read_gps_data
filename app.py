@@ -36,35 +36,38 @@ except Exception as e:
 # ---- Helper function ----
 def build_query(filter_type, start_date, end_date, search):
     query = {}
-    today = datetime.now()
+    today = datetime.now(VN_TZ)
 
-    # Nếu có khoảng ngày custom
-    if start_date and end_date:
+    # --- Lọc custom ---
+    if filter_type == "custom" and start_date and end_date:
         try:
-            start = datetime.strptime(start_date, "%Y-%m-%d")
-            end = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1) - timedelta(seconds=1)
+            start = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=VN_TZ)
+            end = datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=VN_TZ) + timedelta(days=1) - timedelta(seconds=1)
             query["CheckinTime"] = {"$gte": start, "$lte": end}
         except ValueError:
             pass
 
-    # Lọc nhanh theo tuần/tháng/năm
+    # --- Tuần này ---
     elif filter_type == "week":
-        start = today - timedelta(days=today.weekday())  # Monday
-        end = start + timedelta(days=6)  # Sunday
+        start = today - timedelta(days=today.weekday())
+        start = start.replace(hour=0, minute=0, second=0, microsecond=0)
+        end = start + timedelta(days=6, hours=23, minutes=59, seconds=59)
         query["CheckinTime"] = {"$gte": start, "$lte": end}
 
+    # --- Tháng này ---
     elif filter_type == "month":
-        start = today.replace(day=1)
+        start = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         last_day = calendar.monthrange(today.year, today.month)[1]
-        end = today.replace(day=last_day, hour=23, minute=59, second=59)
+        end = today.replace(day=last_day, hour=23, minute=59, second=59, microsecond=999999)
         query["CheckinTime"] = {"$gte": start, "$lte": end}
 
+    # --- Năm nay ---
     elif filter_type == "year":
-        start = today.replace(month=1, day=1)
-        end = today.replace(month=12, day=31, hour=23, minute=59, second=59)
+        start = today.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        end = today.replace(month=12, day=31, hour=23, minute=59, second=59, microsecond=999999)
         query["CheckinTime"] = {"$gte": start, "$lte": end}
 
-    # Nếu có tham số tìm kiếm
+    # --- Tìm kiếm ---
     if search:
         query["EmployeeName"] = {"$regex": re.compile(search, re.IGNORECASE)}
 
