@@ -6,23 +6,24 @@
   <title>Dữ liệu chấm công GPS</title>
   <style>
     body { font-family: Arial, sans-serif; background: #f4f6f9; padding: 20px; }
-    h2 { text-align: center; }
+    h2 { text-align: center; margin-bottom: 20px; }
     .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
     .controls input, .controls select, .controls button { padding: 6px 10px; font-size: 14px; }
     .table-container { max-height: 500px; overflow-y: auto; border: 1px solid #ccc; }
-    table { width: 100%; border-collapse: collapse; background: white; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    table { width: 100%; border-collapse: collapse; background: white; font-size: 14px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: middle; }
     th { background: #007bff; color: white; cursor: pointer; user-select: none; position: sticky; top: 0; z-index: 2; }
-    tr:nth-child(even) { background: #f2f2f2; }
+    tr:nth-child(even) { background: #f9f9f9; }
     .sortable:after { content: " ⇅"; font-size: 12px; }
     .asc:after { content: " ↑"; }
     .desc:after { content: " ↓"; }
-    img.face { object-fit: cover; border-radius: 4px; border:1px solid #ccc; }
+    img.face { object-fit: cover; border-radius: 4px; border:1px solid #ccc; max-width:80px; max-height:60px; }
   </style>
 </head>
 <body>
   <h2>📌 Dữ liệu chấm công GPS</h2>
 
+  <!-- Bộ lọc nhanh -->
   <div class="controls">
     <label><b>Lọc nhanh:</b></label>
     <button onclick="applyFilter('week')">Tuần này</button>
@@ -31,6 +32,7 @@
     <button onclick="applyFilter('all')">Tất cả</button>
   </div>
 
+  <!-- Lọc theo khoảng ngày -->
   <div class="controls">
     <label><b>Từ ngày:</b></label>
     <input type="date" id="startDate">
@@ -39,29 +41,35 @@
     <button onclick="applyDateRange()">Áp dụng</button>
   </div>
 
+  <!-- Tìm kiếm -->
   <div class="controls">
     <label><b>Tìm kiếm:</b></label>
     <input type="text" id="searchBox" placeholder="Nhập tên nhân viên...">
     <button onclick="applySearch()">Tìm</button>
   </div>
 
+  <!-- Xuất Excel + Reset -->
   <div class="controls">
     <button onclick="exportExcel()">📥 Xuất Excel</button>
     <button onclick="loadData()">🔄 Làm mới</button>
     <button onclick="resetAll()">♻️ Reset</button>
   </div>
 
+  <!-- Bảng dữ liệu -->
   <div class="table-container">
     <table>
       <thead>
         <tr>
           <th class="sortable" onclick="sortTable('EmployeeId')">Mã NV</th>
           <th class="sortable" onclick="sortTable('EmployeeName')">Tên nhân viên</th>
+          <th class="sortable" onclick="sortTable('ProjectId')">ID Dự án</th>
+          <th class="sortable" onclick="sortTable('Tasks')">Công việc</th>
+          <th class="sortable" onclick="sortTable('OtherNote')">Khác</th>
           <th class="sortable" onclick="sortTable('Address')">Địa chỉ</th>
           <th class="sortable" onclick="sortTable('CheckinTime')">Thời gian Check-in</th>
           <th class="sortable" onclick="sortTable('Shift')">Ca làm việc</th>
           <th class="sortable" onclick="sortTable('Status')">Trạng thái</th>
-          <th class="sortable" onclick="sortTable('FaceImage')">Hình ảnh</th>
+          <th>Ảnh</th>
         </tr>
       </thead>
       <tbody id="dataBody"></tbody>
@@ -88,6 +96,8 @@
         data.sort((a, b) => {
           let valA = a[currentSort.column] || "";
           let valB = b[currentSort.column] || "";
+          if (Array.isArray(valA)) valA = valA.join(", ");
+          if (Array.isArray(valB)) valB = valB.join(", ");
           if (currentSort.order === "asc") return valA > valB ? 1 : -1;
           if (currentSort.order === "desc") return valA < valB ? 1 : -1;
           return 0;
@@ -101,11 +111,14 @@
           <tr>
             <td>${row.EmployeeId || ""}</td>
             <td>${row.EmployeeName || ""}</td>
+            <td>${row.ProjectId || ""}</td>
+            <td>${row.Tasks ? row.Tasks.join(", ") : ""}</td>
+            <td>${row.OtherNote || ""}</td>
             <td>${row.Address || ""}</td>
             <td>${row.CheckinTime || ""}</td>
             <td>${row.Shift || ""}</td>
             <td>${row.Status || ""}</td>
-            <td>${row.FaceImage ? `<img src="${row.FaceImage}" width="80" height="60" class="face">` : ""}</td>
+            <td>${row.FaceImage ? `<img src="${row.FaceImage}" class="face">` : ""}</td>
           </tr>`;
       });
       updateSortIcons();
@@ -143,6 +156,7 @@
     }
 
     function applySearch() { currentSearch = document.getElementById("searchBox").value; loadData(); }
+
     function exportExcel() {
       let url = `/api/export-excel?filter=${currentFilter}`;
       if (currentStartDate && currentEndDate) url += `&startDate=${currentStartDate}&endDate=${currentEndDate}`;
