@@ -33,6 +33,7 @@ except Exception as e:
     raise RuntimeError(f"❌ Không thể kết nối MongoDB: {e}")
 
 
+# ---- Xây dựng query cho filter ----
 def build_query(filter_type, start_date, end_date, search):
     query = {}
     today = datetime.now(VN_TZ)
@@ -62,13 +63,13 @@ def build_query(filter_type, start_date, end_date, search):
     return query
 
 
-
-# ---- API routes ----
+# ---- API: Trang index ----
 @app.route("/")
 def index():
     return render_template("index.html")
 
 
+# ---- API: Lấy danh sách chấm công ----
 @app.route("/api/attendances", methods=["GET"])
 def get_attendances():
     try:
@@ -83,11 +84,14 @@ def get_attendances():
             "_id": 0,
             "EmployeeId": 1,
             "EmployeeName": 1,
+            "ProjectId": 1,
+            "Tasks": 1,
+            "OtherNote": 1,
             "Address": 1,
             "CheckinTime": 1,
             "Shift": 1,
             "Status": 1,
-            "FaceImage": 1   # thêm cột ảnh
+            "FaceImage": 1
         }))
 
         # Convert datetime -> string theo giờ VN (dd/MM/yyyy HH:mm:ss)
@@ -100,6 +104,7 @@ def get_attendances():
         return jsonify({"error": str(e)}), 500
 
 
+# ---- API: Xuất Excel ----
 @app.route("/api/export-excel", methods=["GET"])
 def export_to_excel():
     try:
@@ -113,6 +118,9 @@ def export_to_excel():
             "_id": 0,
             "EmployeeId": 1,
             "EmployeeName": 1,
+            "ProjectId": 1,
+            "Tasks": 1,
+            "OtherNote": 1,
             "Address": 1,
             "CheckinTime": 1,
             "Shift": 1,
@@ -124,6 +132,11 @@ def export_to_excel():
             if isinstance(d.get("CheckinTime"), datetime):
                 d["CheckinTime"] = d["CheckinTime"].astimezone(VN_TZ).strftime("%d/%m/%Y %H:%M:%S")
 
+        # Convert Tasks list thành chuỗi
+        for d in data:
+            if isinstance(d.get("Tasks"), list):
+                d["Tasks"] = ", ".join(d["Tasks"])
+
         df = pd.DataFrame(data)
         output = BytesIO()
         with pd.ExcelWriter(output, engine="openpyxl") as writer:
@@ -134,9 +147,9 @@ def export_to_excel():
         if start_date and end_date:
             filename = f"Danh sách chấm công_{start_date}_to_{end_date}.xlsx"
         elif search:
-            filename = f"Danh sách chấm công_{search}_{datetime.now().strftime('%d/%m/%Y')}.xlsx"
+            filename = f"Danh sách chấm công_{search}_{datetime.now().strftime('%d-%m-%Y')}.xlsx"
         else:
-            filename = f"Danh sách chấm công_{filter_type}_{datetime.now().strftime('%d/%m/%Y')}.xlsx"
+            filename = f"Danh sách chấm công_{filter_type}_{datetime.now().strftime('%d-%m-%Y')}.xlsx"
 
         return send_file(
             output,
