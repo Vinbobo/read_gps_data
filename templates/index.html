@@ -17,9 +17,16 @@
     .sortable:after { content: " ⇅"; font-size: 12px; }
     .asc:after { content: " ↑"; }
     .desc:after { content: " ↓"; }
-    .pagination { margin-top: 15px; display: flex; justify-content: center; align-items: center; gap: 10px; }
-    .pagination button { padding: 5px 12px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
-    .pagination button:disabled { background: #eee; cursor: not-allowed; }
+    img.face-thumb {
+      width: 60px;
+      height: 45px;
+      object-fit: cover;
+      border-radius: 4px;
+      border:1px solid #ccc;
+      cursor:pointer;
+    }
+    .pagination { margin-top: 15px; text-align: center; }
+    .pagination button { margin: 0 2px; padding: 5px 10px; }
   </style>
 </head>
 <body>
@@ -50,19 +57,18 @@
     <button onclick="applySearch()">Tìm</button>
   </div>
 
-  <!-- Xuất Excel + Làm mới + Reset -->
+  <!-- Xuất Excel + Reset -->
   <div class="controls">
-    <button onclick="exportExcel()">📥 Xuất Excel</button>
-    <button onclick="loadData()">🔄 Làm mới</button>
-    <button onclick="resetAll()">♻️ Reset</button>
-
-    <label for="rowsPerPage"><b>Hiển thị:</b></label>
+    <label><b>Số dòng/trang:</b></label>
     <select id="rowsPerPage" onchange="changeRowsPerPage()">
       <option value="10" selected>10</option>
       <option value="20">20</option>
       <option value="50">50</option>
       <option value="100">100</option>
-    </select> hàng/trang
+    </select>
+    <button onclick="exportExcel()">📥 Xuất Excel</button>
+    <button onclick="loadData()">🔄 Làm mới</button>
+    <button onclick="resetAll()">♻️ Reset</button>
   </div>
 
   <!-- Bảng dữ liệu -->
@@ -79,35 +85,28 @@
           <th class="sortable" onclick="sortTable('CheckinTime')">Thời gian Check-in</th>
           <th class="sortable" onclick="sortTable('Shift')">Ca làm việc</th>
           <th class="sortable" onclick="sortTable('Status')">Trạng thái</th>
+          <th>Ảnh</th>
         </tr>
       </thead>
       <tbody id="dataBody"></tbody>
     </table>
   </div>
 
-  <!-- Phân trang -->
-  <div class="pagination">
-    <button id="prevBtn" onclick="prevPage()">⬅️ Trước</button>
-    <span id="pageInfo"></span>
-    <button id="nextBtn" onclick="nextPage()">Sau ➡️</button>
-  </div>
+  <div class="pagination" id="pagination"></div>
 
   <script>
     let currentFilter = "all", currentStartDate = "", currentEndDate = "", currentSearch = "";
     let rawData = [], currentSort = { column: null, order: null };
-    let currentPage = 1, totalPages = 1, limit = 10; // mặc định 10 hàng/trang
+    let currentPage = 1, rowsPerPage = 10;
 
     async function loadData() {
-      let url = `/api/attendances?filter=${currentFilter}&page=${currentPage}&limit=${limit}`;
+      let url = `/api/attendances?filter=${currentFilter}`;
       if (currentStartDate && currentEndDate) url += `&startDate=${currentStartDate}&endDate=${currentEndDate}`;
       if (currentSearch) url += `&search=${encodeURIComponent(currentSearch)}`;
-
       const res = await fetch(url);
-      const json = await res.json();
-      rawData = json.data || [];
-      totalPages = Math.ceil(json.total / limit);
+      rawData = await res.json();
+      currentPage = 1;
       renderTable();
-      updatePagination(json.page, totalPages, json.total);
     }
 
     function renderTable() {
@@ -124,9 +123,13 @@
         });
       }
 
+      const start = (currentPage - 1) * rowsPerPage;
+      const end = start + rowsPerPage;
+      const pageData = data.slice(start, end);
+
       const tbody = document.getElementById("dataBody");
       tbody.innerHTML = "";
-      data.forEach(row => {
+      pageData.forEach(row => {
         tbody.innerHTML += `
           <tr>
             <td>${row.EmployeeId || ""}</td>
@@ -138,21 +141,30 @@
             <td>${row.CheckinTime || ""}</td>
             <td>${row.Shift || ""}</td>
             <td>${row.Status || ""}</td>
+            <td>${row.FaceImage ? `<a href="${row.FaceImage}" target="_blank"><img src="${row.FaceImage}" class="face-thumb" loading="lazy"></a>` : ""}</td>
           </tr>`;
       });
       updateSortIcons();
+      renderPagination(data.length);
     }
 
-    function updatePagination(page, totalPages, total) {
-      document.getElementById("pageInfo").innerText = `Trang ${page}/${totalPages} (Tổng: ${total})`;
-      document.getElementById("prevBtn").disabled = page <= 1;
-      document.getElementById("nextBtn").disabled = page >= totalPages;
+    function renderPagination(totalRows) {
+      const pageCount = Math.ceil(totalRows / rowsPerPage);
+      const container = document.getElementById("pagination");
+      container.innerHTML = "";
+      for (let i = 1; i <= pageCount; i++) {
+        container.innerHTML += `<button onclick="goToPage(${i})" ${i===currentPage ? "style='font-weight:bold;'" : ""}>${i}</button>`;
+      }
+    }
+
+    function goToPage(page) {
+      currentPage = page;
+      renderTable();
     }
 
     function sortTable(column) {
       if (currentSort.column === column) {
-        currentSort.order = currentSort.order === "asc" ? "desc" :
-                           currentSort.order === "desc" ? null : "asc";
+        currentSort.order = currentSort.order === "asc" ? "desc" : currentSort.order === "desc" ? null : "asc";
         if (!currentSort.order) currentSort.column = null;
       } else {
         currentSort.column = column;
@@ -169,35 +181,18 @@
       }
     }
 
-    function applyFilter(type) { currentFilter = type; currentStartDate = ""; currentEndDate = ""; currentPage = 1; loadData(); }
-    function applyDateRange() { currentStartDate = document.getElementById("startDate").value; currentEndDate = document.getElementById("endDate").value; currentFilter = "custom"; currentPage = 1; loadData(); }
-    function applySearch() { currentSearch = document.getElementById("searchBox").value; currentPage = 1; loadData(); }
-
-    function exportExcel() {
-      let url = `/api/export-excel?filter=${currentFilter}`;
-      if (currentStartDate && currentEndDate) url += `&startDate=${currentStartDate}&endDate=${currentEndDate}`;
-      if (currentSearch) url += `&search=${encodeURIComponent(currentSearch)}`;
-      window.location.href = url;
-    }
-
+    function applyFilter(type) { currentFilter = type; currentStartDate = ""; currentEndDate = ""; loadData(); }
+    function applyDateRange() { currentStartDate = document.getElementById("startDate").value; currentEndDate = document.getElementById("endDate").value; currentFilter = "custom"; loadData(); }
+    function applySearch() { currentSearch = document.getElementById("searchBox").value; loadData(); }
+    function changeRowsPerPage() { rowsPerPage = parseInt(document.getElementById("rowsPerPage").value); currentPage = 1; renderTable(); }
+    function exportExcel() { let url = `/api/export-excel?filter=${currentFilter}`; if (currentStartDate && currentEndDate) url += `&startDate=${currentStartDate}&endDate=${currentEndDate}`; if (currentSearch) url += `&search=${encodeURIComponent(currentSearch)}`; window.location.href = url; }
     function resetAll() {
-      currentFilter = "all"; currentStartDate = ""; currentEndDate = ""; currentSearch = ""; currentPage = 1; limit = 10;
-      document.getElementById("rowsPerPage").value = "10";
-      currentSort = { column: null, order: null };
-      document.getElementById("startDate").value = "";
-      document.getElementById("endDate").value = "";
-      document.getElementById("searchBox").value = "";
+      currentFilter = "all"; currentStartDate = ""; currentEndDate = ""; currentSearch = "";
+      currentSort = { column: null, order: null }; currentPage = 1; rowsPerPage = 10;
+      document.getElementById("startDate").value = ""; document.getElementById("endDate").value = "";
+      document.getElementById("searchBox").value = ""; document.getElementById("rowsPerPage").value = "10";
       loadData();
     }
-
-    function changeRowsPerPage() {
-      limit = parseInt(document.getElementById("rowsPerPage").value);
-      currentPage = 1;
-      loadData();
-    }
-
-    function prevPage() { if (currentPage > 1) { currentPage--; loadData(); } }
-    function nextPage() { if (currentPage < totalPages) { currentPage++; loadData(); } }
 
     loadData();
   </script>
