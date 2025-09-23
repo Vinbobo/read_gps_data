@@ -17,7 +17,14 @@
     .sortable:after { content: " ⇅"; font-size: 12px; }
     .asc:after { content: " ↑"; }
     .desc:after { content: " ↓"; }
-    img.face { object-fit: cover; border-radius: 4px; border:1px solid #ccc; max-width:80px; max-height:60px; }
+    img.face {
+      object-fit: cover;
+      border-radius: 4px;
+      border:1px solid #ccc;
+      width:60px;
+      height:45px;
+      cursor:pointer;
+    }
   </style>
 </head>
 <body>
@@ -84,7 +91,6 @@
       let url = `/api/attendances?filter=${currentFilter}`;
       if (currentStartDate && currentEndDate) url += `&startDate=${currentStartDate}&endDate=${currentEndDate}`;
       if (currentSearch) url += `&search=${encodeURIComponent(currentSearch)}`;
-
       const res = await fetch(url);
       rawData = await res.json();
       renderTable();
@@ -103,7 +109,6 @@
           return 0;
         });
       }
-
       const tbody = document.getElementById("dataBody");
       tbody.innerHTML = "";
       data.forEach(row => {
@@ -118,7 +123,11 @@
             <td>${row.CheckinTime || ""}</td>
             <td>${row.Shift || ""}</td>
             <td>${row.Status || ""}</td>
-            <td>${row.FaceImage ? `<img src="${row.FaceImage}" class="face">` : ""}</td>
+            <td>
+              ${row.FaceImage ? `<a href="${row.FaceImage}" target="_blank">
+                <img src="${row.FaceImage}" class="face" loading="lazy">
+              </a>` : ""}
+            </td>
           </tr>`;
       });
       updateSortIcons();
