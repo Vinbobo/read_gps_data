@@ -14,7 +14,7 @@ CORS(app)
 # ---- Timezone VN ----
 VN_TZ = timezone(timedelta(hours=7))
 
-# ---- Load MONGO_URI từ biến môi trường ----
+# ---- Load MONGO_URI ----
 MONGO_URI = os.getenv(
     "MONGO_URI",
     "mongodb+srv://banhbaobeo2205:lm2hiCLXp6B0D7hq@cluster0.festnla.mongodb.net/?retryWrites=true&w=majority"
@@ -22,7 +22,7 @@ MONGO_URI = os.getenv(
 DB_NAME = os.getenv("DB_NAME", "Sun_Database_1")
 
 if not MONGO_URI or MONGO_URI.strip() == "":
-    raise ValueError("❌ Lỗi: MONGO_URI chưa được cấu hình trong biến môi trường Render!")
+    raise ValueError("❌ Lỗi: MONGO_URI chưa được cấu hình!")
 
 # ---- Kết nối MongoDB ----
 try:
@@ -33,7 +33,7 @@ except Exception as e:
     raise RuntimeError(f"❌ Không thể kết nối MongoDB: {e}")
 
 
-# ---- Xây dựng query cho filter ----
+# ---- Hàm build query ----
 def build_query(filter_type, start_date, end_date, search):
     query = {}
     today = datetime.now(VN_TZ)
@@ -69,7 +69,7 @@ def index():
     return render_template("index.html")
 
 
-# ---- API: Lấy danh sách chấm công ----
+# ---- API: Lấy danh sách chấm công (có phân trang) ----
 @app.route("/api/attendances", methods=["GET"])
 def get_attendances():
     try:
@@ -78,9 +78,15 @@ def get_attendances():
         end_date = request.args.get("endDate")
         search = request.args.get("search", "").strip()
 
+        # Phân trang
+        page = int(request.args.get("page", 1))
+        limit = int(request.args.get("limit", 20))
+        skip = (page - 1) * limit
+
         query = build_query(filter_type, start_date, end_date, search)
 
-        data = list(collection.find(query, {
+        total = collection.count_documents(query)
+        cursor = collection.find(query, {
             "_id": 0,
             "EmployeeId": 1,
             "EmployeeName": 1,
@@ -91,14 +97,21 @@ def get_attendances():
             "CheckinTime": 1,
             "Shift": 1,
             "Status": 1
-        }))
+        }).skip(skip).limit(limit).sort("CheckinTime", -1)
 
-        # Format datetime
+        data = list(cursor)
+
+        # Convert datetime -> string VN format
         for d in data:
             if isinstance(d.get("CheckinTime"), datetime):
                 d["CheckinTime"] = d["CheckinTime"].astimezone(VN_TZ).strftime("%d/%m/%Y %H:%M:%S")
 
-        return jsonify(data), 200
+        return jsonify({
+            "total": total,
+            "page": page,
+            "limit": limit,
+            "data": data
+        }), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -126,7 +139,6 @@ def export_to_excel():
             "Status": 1
         }))
 
-        # Format datetime & tasks
         for d in data:
             if isinstance(d.get("CheckinTime"), datetime):
                 d["CheckinTime"] = d["CheckinTime"].astimezone(VN_TZ).strftime("%d/%m/%Y %H:%M:%S")
@@ -139,14 +151,7 @@ def export_to_excel():
             df.to_excel(writer, sheet_name="Attendances", index=False)
         output.seek(0)
 
-        # Tên file động
-        if start_date and end_date:
-            filename = f"ChamCong_{start_date}_to_{end_date}.xlsx"
-        elif search:
-            filename = f"ChamCong_{search}_{datetime.now().strftime('%d-%m-%Y')}.xlsx"
-        else:
-            filename = f"ChamCong_{filter_type}_{datetime.now().strftime('%d-%m-%Y')}.xlsx"
-
+        filename = f"Danh_sach_cham_cong_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
         return send_file(
             output,
             as_attachment=True,
