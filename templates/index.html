@@ -17,14 +17,6 @@
     .sortable:after { content: " ⇅"; font-size: 12px; }
     .asc:after { content: " ↑"; }
     .desc:after { content: " ↓"; }
-    img.face {
-      object-fit: cover;
-      border-radius: 4px;
-      border:1px solid #ccc;
-      width:60px;
-      height:45px;
-      cursor:pointer;
-    }
   </style>
 </head>
 <body>
@@ -76,7 +68,6 @@
           <th class="sortable" onclick="sortTable('CheckinTime')">Thời gian Check-in</th>
           <th class="sortable" onclick="sortTable('Shift')">Ca làm việc</th>
           <th class="sortable" onclick="sortTable('Status')">Trạng thái</th>
-          <th>Ảnh</th>
         </tr>
       </thead>
       <tbody id="dataBody"></tbody>
@@ -123,11 +114,6 @@
             <td>${row.CheckinTime || ""}</td>
             <td>${row.Shift || ""}</td>
             <td>${row.Status || ""}</td>
-            <td>
-              ${row.FaceImage ? `<a href="${row.FaceImage}" target="_blank">
-                <img src="${row.FaceImage}" class="face" loading="lazy">
-              </a>` : ""}
-            </td>
           </tr>`;
       });
       updateSortIcons();
