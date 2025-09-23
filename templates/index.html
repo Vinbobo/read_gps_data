@@ -17,6 +17,9 @@
     .sortable:after { content: " ⇅"; font-size: 12px; }
     .asc:after { content: " ↑"; }
     .desc:after { content: " ↓"; }
+    .pagination { display:flex; justify-content:center; align-items:center; margin-top:10px; gap:5px; }
+    .pagination button { padding:5px 10px; border:1px solid #ccc; background:#fff; cursor:pointer; }
+    .pagination button.active { background:#007bff; color:#fff; }
   </style>
 </head>
 <body>
@@ -47,11 +50,18 @@
     <button onclick="applySearch()">Tìm</button>
   </div>
 
-  <!-- Xuất Excel + Reset -->
+  <!-- Xuất Excel + Reset + Rows per page -->
   <div class="controls">
     <button onclick="exportExcel()">📥 Xuất Excel</button>
     <button onclick="loadData()">🔄 Làm mới</button>
     <button onclick="resetAll()">♻️ Reset</button>
+    <label for="rowsPerPage"><b>Dòng/trang:</b></label>
+    <select id="rowsPerPage" onchange="changeRowsPerPage()">
+      <option value="10">10</option>
+      <option value="20" selected>20</option>
+      <option value="50">50</option>
+      <option value="100">100</option>
+    </select>
   </div>
 
   <!-- Bảng dữ liệu -->
@@ -74,16 +84,22 @@
     </table>
   </div>
 
+  <!-- Phân trang -->
+  <div class="pagination" id="pagination"></div>
+
   <script>
     let currentFilter = "all", currentStartDate = "", currentEndDate = "", currentSearch = "";
     let rawData = [], currentSort = { column: null, order: null };
+    let currentPage = 1, rowsPerPage = 20;
 
     async function loadData() {
       let url = `/api/attendances?filter=${currentFilter}`;
       if (currentStartDate && currentEndDate) url += `&startDate=${currentStartDate}&endDate=${currentEndDate}`;
       if (currentSearch) url += `&search=${encodeURIComponent(currentSearch)}`;
+
       const res = await fetch(url);
       rawData = await res.json();
+      currentPage = 1;
       renderTable();
     }
 
@@ -100,9 +116,14 @@
           return 0;
         });
       }
+
+      let start = (currentPage - 1) * rowsPerPage;
+      let end = start + rowsPerPage;
+      let pageData = data.slice(start, end);
+
       const tbody = document.getElementById("dataBody");
       tbody.innerHTML = "";
-      data.forEach(row => {
+      pageData.forEach(row => {
         tbody.innerHTML += `
           <tr>
             <td>${row.EmployeeId || ""}</td>
@@ -117,6 +138,38 @@
           </tr>`;
       });
       updateSortIcons();
+      renderPagination(data.length);
+    }
+
+    function renderPagination(totalRows) {
+      const totalPages = Math.ceil(totalRows / rowsPerPage);
+      const pagination = document.getElementById("pagination");
+      pagination.innerHTML = "";
+
+      if (totalPages <= 1) return;
+
+      if (currentPage > 1) {
+        pagination.innerHTML += `<button onclick="goToPage(${currentPage-1})">« Trước</button>`;
+      }
+
+      for (let i = 1; i <= totalPages; i++) {
+        pagination.innerHTML += `<button class="${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+      }
+
+      if (currentPage < totalPages) {
+        pagination.innerHTML += `<button onclick="goToPage(${currentPage+1})">Sau »</button>`;
+      }
+    }
+
+    function goToPage(page) {
+      currentPage = page;
+      renderTable();
+    }
+
+    function changeRowsPerPage() {
+      rowsPerPage = parseInt(document.getElementById("rowsPerPage").value);
+      currentPage = 1;
+      renderTable();
     }
 
     function sortTable(column) {
@@ -161,7 +214,7 @@
 
     function resetAll() {
       currentFilter = "all"; currentStartDate = ""; currentEndDate = ""; currentSearch = "";
-      currentSort = { column: null, order: null };
+      currentSort = { column: null, order: null }; currentPage = 1;
       document.getElementById("startDate").value = "";
       document.getElementById("endDate").value = "";
       document.getElementById("searchBox").value = "";
