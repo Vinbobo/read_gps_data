@@ -50,11 +50,19 @@
     <button onclick="applySearch()">Tìm</button>
   </div>
 
-  <!-- Xuất Excel + Reset -->
+  <!-- Xuất Excel + Làm mới + Reset -->
   <div class="controls">
     <button onclick="exportExcel()">📥 Xuất Excel</button>
     <button onclick="loadData()">🔄 Làm mới</button>
     <button onclick="resetAll()">♻️ Reset</button>
+
+    <label for="rowsPerPage"><b>Hiển thị:</b></label>
+    <select id="rowsPerPage" onchange="changeRowsPerPage()">
+      <option value="10" selected>10</option>
+      <option value="20">20</option>
+      <option value="50">50</option>
+      <option value="100">100</option>
+    </select> hàng/trang
   </div>
 
   <!-- Bảng dữ liệu -->
@@ -87,7 +95,7 @@
   <script>
     let currentFilter = "all", currentStartDate = "", currentEndDate = "", currentSearch = "";
     let rawData = [], currentSort = { column: null, order: null };
-    let currentPage = 1, totalPages = 1, limit = 20;
+    let currentPage = 1, totalPages = 1, limit = 10; // mặc định 10 hàng/trang
 
     async function loadData() {
       let url = `/api/attendances?filter=${currentFilter}&page=${currentPage}&limit=${limit}`;
@@ -173,11 +181,18 @@
     }
 
     function resetAll() {
-      currentFilter = "all"; currentStartDate = ""; currentEndDate = ""; currentSearch = ""; currentPage = 1;
+      currentFilter = "all"; currentStartDate = ""; currentEndDate = ""; currentSearch = ""; currentPage = 1; limit = 10;
+      document.getElementById("rowsPerPage").value = "10";
       currentSort = { column: null, order: null };
       document.getElementById("startDate").value = "";
       document.getElementById("endDate").value = "";
       document.getElementById("searchBox").value = "";
+      loadData();
+    }
+
+    function changeRowsPerPage() {
+      limit = parseInt(document.getElementById("rowsPerPage").value);
+      currentPage = 1;
       loadData();
     }
 
