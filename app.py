@@ -33,7 +33,7 @@ except Exception as e:
     raise RuntimeError(f"❌ Không thể kết nối MongoDB: {e}")
 
 
-# ---- Hàm build query ----
+# ---- Xây dựng query cho filter ----
 def build_query(filter_type, start_date, end_date, search):
     query = {}
     today = datetime.now(VN_TZ)
@@ -69,7 +69,7 @@ def index():
     return render_template("index.html")
 
 
-# ---- API: Lấy danh sách chấm công (có phân trang) ----
+# ---- API: Lấy danh sách chấm công ----
 @app.route("/api/attendances", methods=["GET"])
 def get_attendances():
     try:
@@ -78,15 +78,9 @@ def get_attendances():
         end_date = request.args.get("endDate")
         search = request.args.get("search", "").strip()
 
-        # Phân trang
-        page = int(request.args.get("page", 1))
-        limit = int(request.args.get("limit", 20))
-        skip = (page - 1) * limit
-
         query = build_query(filter_type, start_date, end_date, search)
 
-        total = collection.count_documents(query)
-        cursor = collection.find(query, {
+        data = list(collection.find(query, {
             "_id": 0,
             "EmployeeId": 1,
             "EmployeeName": 1,
@@ -96,22 +90,16 @@ def get_attendances():
             "Address": 1,
             "CheckinTime": 1,
             "Shift": 1,
-            "Status": 1
-        }).skip(skip).limit(limit).sort("CheckinTime", -1)
+            "Status": 1,
+            "FaceImage": 1
+        }))
 
-        data = list(cursor)
-
-        # Convert datetime -> string VN format
+        # Convert datetime -> string
         for d in data:
             if isinstance(d.get("CheckinTime"), datetime):
                 d["CheckinTime"] = d["CheckinTime"].astimezone(VN_TZ).strftime("%d/%m/%Y %H:%M:%S")
 
-        return jsonify({
-            "total": total,
-            "page": page,
-            "limit": limit,
-            "data": data
-        }), 200
+        return jsonify(data), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -139,9 +127,13 @@ def export_to_excel():
             "Status": 1
         }))
 
+        # Convert datetime -> string
         for d in data:
             if isinstance(d.get("CheckinTime"), datetime):
                 d["CheckinTime"] = d["CheckinTime"].astimezone(VN_TZ).strftime("%d/%m/%Y %H:%M:%S")
+
+        # Convert Tasks list thành chuỗi
+        for d in data:
             if isinstance(d.get("Tasks"), list):
                 d["Tasks"] = ", ".join(d["Tasks"])
 
@@ -151,7 +143,14 @@ def export_to_excel():
             df.to_excel(writer, sheet_name="Attendances", index=False)
         output.seek(0)
 
-        filename = f"Danh_sach_cham_cong_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        # Tạo tên file động
+        if start_date and end_date:
+            filename = f"Danh sách chấm công_{start_date}_to_{end_date}.xlsx"
+        elif search:
+            filename = f"Danh sách chấm công_{search}_{datetime.now().strftime('%d-%m-%Y')}.xlsx"
+        else:
+            filename = f"Danh sách chấm công_{filter_type}_{datetime.now().strftime('%d-%m-%Y')}.xlsx"
+
         return send_file(
             output,
             as_attachment=True,
