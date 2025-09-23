@@ -90,11 +90,10 @@ def get_attendances():
             "Address": 1,
             "CheckinTime": 1,
             "Shift": 1,
-            "Status": 1,
-            "FaceImage": 1
+            "Status": 1
         }))
 
-        # Convert datetime -> string theo giờ VN (dd/MM/yyyy HH:mm:ss)
+        # Format datetime
         for d in data:
             if isinstance(d.get("CheckinTime"), datetime):
                 d["CheckinTime"] = d["CheckinTime"].astimezone(VN_TZ).strftime("%d/%m/%Y %H:%M:%S")
@@ -127,13 +126,10 @@ def export_to_excel():
             "Status": 1
         }))
 
-        # Convert datetime -> string theo giờ VN (dd/MM/yyyy HH:mm:ss)
+        # Format datetime & tasks
         for d in data:
             if isinstance(d.get("CheckinTime"), datetime):
                 d["CheckinTime"] = d["CheckinTime"].astimezone(VN_TZ).strftime("%d/%m/%Y %H:%M:%S")
-
-        # Convert Tasks list thành chuỗi
-        for d in data:
             if isinstance(d.get("Tasks"), list):
                 d["Tasks"] = ", ".join(d["Tasks"])
 
@@ -143,13 +139,13 @@ def export_to_excel():
             df.to_excel(writer, sheet_name="Attendances", index=False)
         output.seek(0)
 
-        # Tạo tên file động
+        # Tên file động
         if start_date and end_date:
-            filename = f"Danh sách chấm công_{start_date}_to_{end_date}.xlsx"
+            filename = f"ChamCong_{start_date}_to_{end_date}.xlsx"
         elif search:
-            filename = f"Danh sách chấm công_{search}_{datetime.now().strftime('%d-%m-%Y')}.xlsx"
+            filename = f"ChamCong_{search}_{datetime.now().strftime('%d-%m-%Y')}.xlsx"
         else:
-            filename = f"Danh sách chấm công_{filter_type}_{datetime.now().strftime('%d-%m-%Y')}.xlsx"
+            filename = f"ChamCong_{filter_type}_{datetime.now().strftime('%d-%m-%Y')}.xlsx"
 
         return send_file(
             output,
