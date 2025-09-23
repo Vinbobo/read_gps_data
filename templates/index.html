@@ -17,9 +17,9 @@
     .sortable:after { content: " ⇅"; font-size: 12px; }
     .asc:after { content: " ↑"; }
     .desc:after { content: " ↓"; }
-    .pagination { display:flex; justify-content:center; align-items:center; margin-top:10px; gap:5px; }
-    .pagination button { padding:5px 10px; border:1px solid #ccc; background:#fff; cursor:pointer; }
-    .pagination button.active { background:#007bff; color:#fff; }
+    .pagination { margin-top: 15px; display: flex; justify-content: center; align-items: center; gap: 10px; }
+    .pagination button { padding: 5px 12px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
+    .pagination button:disabled { background: #eee; cursor: not-allowed; }
   </style>
 </head>
 <body>
@@ -50,18 +50,11 @@
     <button onclick="applySearch()">Tìm</button>
   </div>
 
-  <!-- Xuất Excel + Reset + Rows per page -->
+  <!-- Xuất Excel + Reset -->
   <div class="controls">
     <button onclick="exportExcel()">📥 Xuất Excel</button>
     <button onclick="loadData()">🔄 Làm mới</button>
     <button onclick="resetAll()">♻️ Reset</button>
-    <label for="rowsPerPage"><b>Dòng/trang:</b></label>
-    <select id="rowsPerPage" onchange="changeRowsPerPage()">
-      <option value="10">10</option>
-      <option value="20" selected>20</option>
-      <option value="50">50</option>
-      <option value="100">100</option>
-    </select>
   </div>
 
   <!-- Bảng dữ liệu -->
@@ -85,22 +78,28 @@
   </div>
 
   <!-- Phân trang -->
-  <div class="pagination" id="pagination"></div>
+  <div class="pagination">
+    <button id="prevBtn" onclick="prevPage()">⬅️ Trước</button>
+    <span id="pageInfo"></span>
+    <button id="nextBtn" onclick="nextPage()">Sau ➡️</button>
+  </div>
 
   <script>
     let currentFilter = "all", currentStartDate = "", currentEndDate = "", currentSearch = "";
     let rawData = [], currentSort = { column: null, order: null };
-    let currentPage = 1, rowsPerPage = 20;
+    let currentPage = 1, totalPages = 1, limit = 20;
 
     async function loadData() {
-      let url = `/api/attendances?filter=${currentFilter}`;
+      let url = `/api/attendances?filter=${currentFilter}&page=${currentPage}&limit=${limit}`;
       if (currentStartDate && currentEndDate) url += `&startDate=${currentStartDate}&endDate=${currentEndDate}`;
       if (currentSearch) url += `&search=${encodeURIComponent(currentSearch)}`;
 
       const res = await fetch(url);
-      rawData = await res.json();
-      currentPage = 1;
+      const json = await res.json();
+      rawData = json.data || [];
+      totalPages = Math.ceil(json.total / limit);
       renderTable();
+      updatePagination(json.page, totalPages, json.total);
     }
 
     function renderTable() {
@@ -117,13 +116,9 @@
         });
       }
 
-      let start = (currentPage - 1) * rowsPerPage;
-      let end = start + rowsPerPage;
-      let pageData = data.slice(start, end);
-
       const tbody = document.getElementById("dataBody");
       tbody.innerHTML = "";
-      pageData.forEach(row => {
+      data.forEach(row => {
         tbody.innerHTML += `
           <tr>
             <td>${row.EmployeeId || ""}</td>
@@ -138,38 +133,12 @@
           </tr>`;
       });
       updateSortIcons();
-      renderPagination(data.length);
     }
 
-    function renderPagination(totalRows) {
-      const totalPages = Math.ceil(totalRows / rowsPerPage);
-      const pagination = document.getElementById("pagination");
-      pagination.innerHTML = "";
-
-      if (totalPages <= 1) return;
-
-      if (currentPage > 1) {
-        pagination.innerHTML += `<button onclick="goToPage(${currentPage-1})">« Trước</button>`;
-      }
-
-      for (let i = 1; i <= totalPages; i++) {
-        pagination.innerHTML += `<button class="${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
-      }
-
-      if (currentPage < totalPages) {
-        pagination.innerHTML += `<button onclick="goToPage(${currentPage+1})">Sau »</button>`;
-      }
-    }
-
-    function goToPage(page) {
-      currentPage = page;
-      renderTable();
-    }
-
-    function changeRowsPerPage() {
-      rowsPerPage = parseInt(document.getElementById("rowsPerPage").value);
-      currentPage = 1;
-      renderTable();
+    function updatePagination(page, totalPages, total) {
+      document.getElementById("pageInfo").innerText = `Trang ${page}/${totalPages} (Tổng: ${total})`;
+      document.getElementById("prevBtn").disabled = page <= 1;
+      document.getElementById("nextBtn").disabled = page >= totalPages;
     }
 
     function sortTable(column) {
@@ -192,18 +161,9 @@
       }
     }
 
-    function applyFilter(type) {
-      currentFilter = type; currentStartDate = ""; currentEndDate = "";
-      loadData();
-    }
-
-    function applyDateRange() {
-      currentStartDate = document.getElementById("startDate").value;
-      currentEndDate = document.getElementById("endDate").value;
-      currentFilter = "custom"; loadData();
-    }
-
-    function applySearch() { currentSearch = document.getElementById("searchBox").value; loadData(); }
+    function applyFilter(type) { currentFilter = type; currentStartDate = ""; currentEndDate = ""; currentPage = 1; loadData(); }
+    function applyDateRange() { currentStartDate = document.getElementById("startDate").value; currentEndDate = document.getElementById("endDate").value; currentFilter = "custom"; currentPage = 1; loadData(); }
+    function applySearch() { currentSearch = document.getElementById("searchBox").value; currentPage = 1; loadData(); }
 
     function exportExcel() {
       let url = `/api/export-excel?filter=${currentFilter}`;
@@ -213,13 +173,16 @@
     }
 
     function resetAll() {
-      currentFilter = "all"; currentStartDate = ""; currentEndDate = ""; currentSearch = "";
-      currentSort = { column: null, order: null }; currentPage = 1;
+      currentFilter = "all"; currentStartDate = ""; currentEndDate = ""; currentSearch = ""; currentPage = 1;
+      currentSort = { column: null, order: null };
       document.getElementById("startDate").value = "";
       document.getElementById("endDate").value = "";
       document.getElementById("searchBox").value = "";
       loadData();
     }
+
+    function prevPage() { if (currentPage > 1) { currentPage--; loadData(); } }
+    function nextPage() { if (currentPage < totalPages) { currentPage++; loadData(); } }
 
     loadData();
   </script>
