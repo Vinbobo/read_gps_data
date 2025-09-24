@@ -34,7 +34,7 @@ except Exception as e:
 
 
 # ---- Xây dựng query cho filter ----
-def build_query(filter_type, start_date, end_date, search):
+def build_query(filter_type, start_date, end_date, search, shift=None):
     query = {}
     today = datetime.now(VN_TZ)
 
@@ -60,6 +60,9 @@ def build_query(filter_type, start_date, end_date, search):
     if search:
         query["EmployeeName"] = {"$regex": re.compile(search, re.IGNORECASE)}
 
+    if shift:  # lọc thêm theo ca
+        query["Shift"] = {"$regex": re.compile(shift, re.IGNORECASE)}
+
     return query
 
 
@@ -77,8 +80,9 @@ def get_attendances():
         start_date = request.args.get("startDate")
         end_date = request.args.get("endDate")
         search = request.args.get("search", "").strip()
+        shift = request.args.get("shift")  # thêm tham số shift
 
-        query = build_query(filter_type, start_date, end_date, search)
+        query = build_query(filter_type, start_date, end_date, search, shift)
 
         data = list(collection.find(query, {
             "_id": 0,
@@ -112,8 +116,9 @@ def export_to_excel():
         start_date = request.args.get("startDate")
         end_date = request.args.get("endDate")
         search = request.args.get("search", "").strip()
+        shift = request.args.get("shift")  # thêm tham số shift
 
-        query = build_query(filter_type, start_date, end_date, search)
+        query = build_query(filter_type, start_date, end_date, search, shift)
         data = list(collection.find(query, {
             "_id": 0,
             "EmployeeId": 1,
@@ -137,19 +142,33 @@ def export_to_excel():
             if isinstance(d.get("Tasks"), list):
                 d["Tasks"] = ", ".join(d["Tasks"])
 
+        # Đổi tên cột sang tiếng Việt
         df = pd.DataFrame(data)
+        df.rename(columns={
+            "EmployeeId": "Mã NV",
+            "EmployeeName": "Tên nhân viên",
+            "ProjectId": "Mã dự án",
+            "Tasks": "Công việc",
+            "OtherNote": "Khác",
+            "Address": "Địa chỉ",
+            "CheckinTime": "Thời gian Check-in",
+            "Shift": "Ca làm việc",
+            "Status": "Trạng thái"
+        }, inplace=True)
+
         output = BytesIO()
         with pd.ExcelWriter(output, engine="openpyxl") as writer:
-            df.to_excel(writer, sheet_name="Attendances", index=False)
+            df.to_excel(writer, sheet_name="Chấm công", index=False)
         output.seek(0)
 
         # Tạo tên file động
+        shift_name = f"_{shift}" if shift else ""
         if start_date and end_date:
-            filename = f"Danh sách chấm công_{start_date}_to_{end_date}.xlsx"
+            filename = f"Danh_sach_cham_cong{shift_name}_{start_date}_to_{end_date}.xlsx"
         elif search:
-            filename = f"Danh sách chấm công_{search}_{datetime.now().strftime('%d-%m-%Y')}.xlsx"
+            filename = f"Danh_sach_cham_cong{shift_name}_{search}_{datetime.now().strftime('%d-%m-%Y')}.xlsx"
         else:
-            filename = f"Danh sách chấm công_{filter_type}_{datetime.now().strftime('%d-%m-%Y')}.xlsx"
+            filename = f"Danh_sach_cham_cong{shift_name}_{filter_type}_{datetime.now().strftime('%d-%m-%Y')}.xlsx"
 
         return send_file(
             output,
