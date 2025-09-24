@@ -39,6 +39,9 @@
     <button onclick="applyFilter('month')">Tháng này</button>
     <button onclick="applyFilter('year')">Năm nay</button>
     <button onclick="applyFilter('all')">Tất cả</button>
+    <!-- Lọc theo ca làm -->
+    <button onclick="applyShiftFilter('Sáng')">Ca sáng</button>
+    <button onclick="applyShiftFilter('Chiều')">Ca chiều</button>
   </div>
 
   <!-- Lọc theo khoảng ngày -->
@@ -97,7 +100,7 @@
   <script>
     let currentFilter = "all", currentStartDate = "", currentEndDate = "", currentSearch = "";
     let rawData = [], currentSort = { column: null, order: null };
-    let currentPage = 1, rowsPerPage = 10;
+    let currentPage = 1, rowsPerPage = 10, shiftFilter = null;
 
     async function loadData() {
       let url = `/api/attendances?filter=${currentFilter}`;
@@ -111,6 +114,12 @@
 
     function renderTable() {
       let data = [...rawData];
+
+      // Filter theo ca sáng/chiều
+      if (shiftFilter) {
+        data = data.filter(row => row.Shift && row.Shift.includes(shiftFilter));
+      }
+
       if (currentSort.column && currentSort.order) {
         data.sort((a, b) => {
           let valA = a[currentSort.column] || "";
@@ -181,17 +190,23 @@
       }
     }
 
-    function applyFilter(type) { currentFilter = type; currentStartDate = ""; currentEndDate = ""; loadData(); }
-    function applyDateRange() { currentStartDate = document.getElementById("startDate").value; currentEndDate = document.getElementById("endDate").value; currentFilter = "custom"; loadData(); }
+    function applyFilter(type) { currentFilter = type; currentStartDate = ""; currentEndDate = ""; shiftFilter = null; loadData(); }
+    function applyDateRange() { currentStartDate = document.getElementById("startDate").value; currentEndDate = document.getElementById("endDate").value; currentFilter = "custom"; shiftFilter = null; loadData(); }
     function applySearch() { currentSearch = document.getElementById("searchBox").value; loadData(); }
     function changeRowsPerPage() { rowsPerPage = parseInt(document.getElementById("rowsPerPage").value); currentPage = 1; renderTable(); }
     function exportExcel() { let url = `/api/export-excel?filter=${currentFilter}`; if (currentStartDate && currentEndDate) url += `&startDate=${currentStartDate}&endDate=${currentEndDate}`; if (currentSearch) url += `&search=${encodeURIComponent(currentSearch)}`; window.location.href = url; }
     function resetAll() {
-      currentFilter = "all"; currentStartDate = ""; currentEndDate = ""; currentSearch = "";
+      currentFilter = "all"; currentStartDate = ""; currentEndDate = ""; currentSearch = ""; shiftFilter = null;
       currentSort = { column: null, order: null }; currentPage = 1; rowsPerPage = 10;
       document.getElementById("startDate").value = ""; document.getElementById("endDate").value = "";
       document.getElementById("searchBox").value = ""; document.getElementById("rowsPerPage").value = "10";
       loadData();
+    }
+
+    function applyShiftFilter(shift) {
+      shiftFilter = shift;
+      currentPage = 1;
+      renderTable();
     }
 
     loadData();
