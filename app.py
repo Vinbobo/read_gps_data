@@ -38,6 +38,7 @@ def build_query(filter_type, start_date, end_date, search, shift=None):
     query = {}
     today = datetime.now(VN_TZ)
 
+    # ---- Lọc theo thời gian ----
     if filter_type == "custom" and start_date and end_date:
         query["CheckinDate"] = {"$gte": start_date, "$lte": end_date}
 
@@ -57,11 +58,18 @@ def build_query(filter_type, start_date, end_date, search, shift=None):
         end = today.replace(month=12, day=31).strftime("%Y-%m-%d")
         query["CheckinDate"] = {"$gte": start, "$lte": end}
 
+    # ---- Lọc theo tên NV ----
     if search:
         query["EmployeeName"] = {"$regex": re.compile(search, re.IGNORECASE)}
 
-    if shift:  # lọc thêm theo ca
-        query["Shift"] = {"$regex": re.compile(shift, re.IGNORECASE)}
+    # ---- Lọc theo ca ----
+    if shift:
+        if shift.lower() == "sang":
+            query["Shift"] = {"$regex": re.compile("Ca 1", re.IGNORECASE)}
+        elif shift.lower() == "chieu":
+            query["Shift"] = {"$regex": re.compile("Ca 2", re.IGNORECASE)}
+        else:
+            query["Shift"] = {"$regex": re.compile(shift, re.IGNORECASE)}
 
     return query
 
@@ -80,7 +88,7 @@ def get_attendances():
         start_date = request.args.get("startDate")
         end_date = request.args.get("endDate")
         search = request.args.get("search", "").strip()
-        shift = request.args.get("shift")  # thêm tham số shift
+        shift = request.args.get("shift")  # ✅ thêm shift
 
         query = build_query(filter_type, start_date, end_date, search, shift)
 
@@ -116,7 +124,7 @@ def export_to_excel():
         start_date = request.args.get("startDate")
         end_date = request.args.get("endDate")
         search = request.args.get("search", "").strip()
-        shift = request.args.get("shift")  # thêm tham số shift
+        shift = request.args.get("shift")  # ✅ thêm shift
 
         query = build_query(filter_type, start_date, end_date, search, shift)
         data = list(collection.find(query, {
