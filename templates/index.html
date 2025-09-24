@@ -7,26 +7,37 @@
   <style>
     body { font-family: Arial, sans-serif; background: #f4f6f9; padding: 20px; }
     h2 { text-align: center; margin-bottom: 20px; }
+
     .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
-    .controls input, .controls select, .controls button { padding: 6px 10px; font-size: 14px; }
-    .table-container { max-height: 500px; overflow-y: auto; border: 1px solid #ccc; }
+    .controls input, .controls select, .controls button {
+      padding: 6px 12px; font-size: 14px; border: 1px solid #007bff; border-radius: 4px;
+      background: #fff; cursor: pointer; transition: all 0.2s;
+    }
+    .controls button:hover { background: #007bff; color: #fff; }
+    .controls button.active { background: #007bff; color: #fff; font-weight: bold; }
+
+    .table-container { max-height: 500px; overflow-y: auto; border: 1px solid #ccc; animation: fadeIn 0.4s ease; }
     table { width: 100%; border-collapse: collapse; background: white; font-size: 14px; }
     th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: middle; }
-    th { background: #007bff; color: white; cursor: pointer; user-select: none; position: sticky; top: 0; z-index: 2; }
+    th {
+      background: #007bff; color: white; cursor: pointer; user-select: none;
+      position: sticky; top: 0; z-index: 2;
+    }
     tr:nth-child(even) { background: #f9f9f9; }
+
     .sortable:after { content: " ⇅"; font-size: 12px; }
     .asc:after { content: " ↑"; }
     .desc:after { content: " ↓"; }
+
     img.face-thumb {
-      width: 60px;
-      height: 45px;
-      object-fit: cover;
-      border-radius: 4px;
-      border:1px solid #ccc;
-      cursor:pointer;
+      width: 60px; height: 45px; object-fit: cover;
+      border-radius: 4px; border:1px solid #ccc; cursor:pointer;
     }
+
     .pagination { margin-top: 15px; text-align: center; }
     .pagination button { margin: 0 2px; padding: 5px 10px; }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   </style>
 </head>
 <body>
@@ -35,13 +46,12 @@
   <!-- Bộ lọc nhanh -->
   <div class="controls">
     <label><b>Lọc nhanh:</b></label>
-    <button onclick="applyFilter('week')">Tuần này</button>
-    <button onclick="applyFilter('month')">Tháng này</button>
-    <button onclick="applyFilter('year')">Năm nay</button>
-    <button onclick="applyFilter('all')">Tất cả</button>
-    <!-- Lọc theo ca làm -->
-    <button onclick="applyShiftFilter('sang')">Ca sáng</button>
-    <button onclick="applyShiftFilter('chieu')">Ca chiều</button>
+    <button onclick="applyFilter('week', this)">Tuần này</button>
+    <button onclick="applyFilter('month', this)">Tháng này</button>
+    <button onclick="applyFilter('year', this)">Năm nay</button>
+    <button onclick="applyFilter('all', this)" class="active">Tất cả</button>
+    <button onclick="applyShiftFilter('sang', this)">Ca sáng</button>
+    <button onclick="applyShiftFilter('chieu', this)">Ca chiều</button>
   </div>
 
   <!-- Lọc theo khoảng ngày -->
@@ -102,6 +112,11 @@
     let rawData = [], currentSort = { column: null, order: null };
     let currentPage = 1, rowsPerPage = 10, shiftFilter = null;
 
+    function setActiveButton(btn) {
+      document.querySelectorAll(".controls button").forEach(b => b.classList.remove("active"));
+      if (btn) btn.classList.add("active");
+    }
+
     async function loadData() {
       let url = `/api/attendances?filter=${currentFilter}`;
       if (currentStartDate && currentEndDate) url += `&startDate=${currentStartDate}&endDate=${currentEndDate}`;
@@ -115,7 +130,6 @@
 
     function renderTable() {
       let data = [...rawData];
-
       if (currentSort.column && currentSort.order) {
         data.sort((a, b) => {
           let valA = a[currentSort.column] || "";
@@ -127,7 +141,6 @@
           return 0;
         });
       }
-
       const start = (currentPage - 1) * rowsPerPage;
       const end = start + rowsPerPage;
       const pageData = data.slice(start, end);
@@ -162,10 +175,7 @@
       }
     }
 
-    function goToPage(page) {
-      currentPage = page;
-      renderTable();
-    }
+    function goToPage(page) { currentPage = page; renderTable(); }
 
     function sortTable(column) {
       if (currentSort.column === column) {
@@ -186,30 +196,28 @@
       }
     }
 
-    function applyFilter(type) {
-      currentFilter = type; 
-      currentStartDate = ""; 
-      currentEndDate = ""; 
-      shiftFilter = null;   // Reset luôn ca khi bấm "Tất cả"
-      loadData();
+    function applyFilter(type, btn = null) {
+      currentFilter = type; currentStartDate = ""; currentEndDate = ""; shiftFilter = null;
+      setActiveButton(btn); loadData();
     }
 
     function applyDateRange() {
       currentStartDate = document.getElementById("startDate").value;
       currentEndDate = document.getElementById("endDate").value;
-      currentFilter = "custom"; 
-      loadData();
+      currentFilter = "custom"; shiftFilter = null;
+      setActiveButton(null); loadData();
     }
 
     function applySearch() { currentSearch = document.getElementById("searchBox").value; loadData(); }
+
     function changeRowsPerPage() { rowsPerPage = parseInt(document.getElementById("rowsPerPage").value); currentPage = 1; renderTable(); }
 
-    function exportExcel() { 
+    function exportExcel() {
       let url = `/api/export-excel?filter=${currentFilter}`;
       if (currentStartDate && currentEndDate) url += `&startDate=${currentStartDate}&endDate=${currentEndDate}`;
       if (currentSearch) url += `&search=${encodeURIComponent(currentSearch)}`;
       if (shiftFilter) url += `&shift=${shiftFilter}`;
-      window.location.href = url; 
+      window.location.href = url;
     }
 
     function resetAll() {
@@ -217,13 +225,13 @@
       currentSort = { column: null, order: null }; currentPage = 1; rowsPerPage = 10;
       document.getElementById("startDate").value = ""; document.getElementById("endDate").value = "";
       document.getElementById("searchBox").value = ""; document.getElementById("rowsPerPage").value = "10";
+      setActiveButton(document.querySelector("button[onclick*='all']")); // active lại nút Tất cả
       loadData();
     }
 
-    function applyShiftFilter(shift) {
-      shiftFilter = shift; // "sang" hoặc "chieu"
-      currentPage = 1;
-      loadData();
+    function applyShiftFilter(shift, btn = null) {
+      shiftFilter = shift; currentPage = 1;
+      setActiveButton(btn); loadData();
     }
 
     loadData();
