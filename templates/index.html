@@ -23,6 +23,16 @@
     }
     .login-box button:hover { background: #0056b3; }
 
+    .top-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 15px;
+    }
+    .welcome { font-weight: bold; color: #333; }
+    .logout-btn {
+      padding: 5px 10px; background: #dc3545; color: #fff;
+      border: none; border-radius: 4px; cursor: pointer; font-size: 13px;
+    }
+
     .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
     .controls input, .controls select, .controls button {
       padding: 6px 12px; font-size: 14px; border: 1px solid #007bff; border-radius: 4px;
@@ -70,6 +80,11 @@
 
   <!-- Nội dung chính -->
   <div id="mainContent">
+    <div class="top-bar">
+      <span class="welcome" id="welcomeMsg"></span>
+      <button class="logout-btn" onclick="logout()">Đăng xuất</button>
+    </div>
+
     <!-- Bộ lọc nhanh -->
     <div class="controls">
       <label><b>Lọc nhanh:</b></label>
@@ -77,8 +92,6 @@
       <button onclick="applyFilter('month', this)">Tháng này</button>
       <button onclick="applyFilter('year', this)">Năm nay</button>
       <button onclick="applyFilter('all', this)" class="active">Tất cả</button>
-      <button onclick="applyShiftFilter('sang', this)">Ca sáng</button>
-      <button onclick="applyShiftFilter('chieu', this)">Ca chiều</button>
     </div>
 
     <!-- Lọc theo khoảng ngày -->
@@ -122,8 +135,8 @@
             <th class="sortable" onclick="sortTable('Tasks')">Công việc</th>
             <th class="sortable" onclick="sortTable('OtherNote')">Khác</th>
             <th class="sortable" onclick="sortTable('Address')">Địa chỉ</th>
-            <th class="sortable" onclick="sortTable('CheckinTime')">Thời gian Check-in</th>
-            <th class="sortable" onclick="sortTable('Shift')">Ca làm việc</th>
+            <th class="sortable" onclick="sortTable('CheckinTime')">Thời gian</th>
+            <th class="sortable" onclick="sortTable('CheckType')">Loại điểm danh</th>
             <th class="sortable" onclick="sortTable('Status')">Trạng thái</th>
             <th>Ảnh</th>
           </tr>
@@ -138,8 +151,8 @@
   <script>
     let currentFilter = "all", currentStartDate = "", currentEndDate = "", currentSearch = "";
     let rawData = [], currentSort = { column: null, order: null };
-    let currentPage = 1, rowsPerPage = 10, shiftFilter = null;
-    let currentEmpId = null;
+    let currentPage = 1, rowsPerPage = 10;
+    let currentEmpId = null, currentEmpName = "";
 
     function setActiveButton(btn) {
       document.querySelectorAll(".controls button").forEach(b => b.classList.remove("active"));
@@ -158,20 +171,30 @@
 
       if (data.success) {
         currentEmpId = empId;
+        currentEmpName = data.EmployeeName;
         sessionStorage.setItem("EmployeeId", empId);
+        sessionStorage.setItem("EmployeeName", currentEmpName);
+
         document.getElementById("loginBox").style.display = "none";
         document.getElementById("mainContent").style.display = "block";
+        document.getElementById("welcomeMsg").innerText = `👋 Xin chào, ${currentEmpName}`;
         loadData();
       } else {
         document.getElementById("loginMessage").innerText = data.message;
       }
     }
 
+    function logout() {
+      sessionStorage.clear();
+      currentEmpId = null; currentEmpName = "";
+      document.getElementById("mainContent").style.display = "none";
+      document.getElementById("loginBox").style.display = "block";
+    }
+
     async function loadData() {
       let url = `/api/attendances?filter=${currentFilter}&empId=${currentEmpId}`;
       if (currentStartDate && currentEndDate) url += `&startDate=${currentStartDate}&endDate=${currentEndDate}`;
       if (currentSearch) url += `&search=${encodeURIComponent(currentSearch)}`;
-      if (shiftFilter) url += `&shift=${shiftFilter}`;
       const res = await fetch(url);
       rawData = await res.json();
       currentPage = 1;
@@ -207,7 +230,7 @@
             <td>${row.OtherNote || ""}</td>
             <td>${row.Address || ""}</td>
             <td>${row.CheckinTime || ""}</td>
-            <td>${row.Shift || ""}</td>
+            <td>${row.CheckType || ""}</td>
             <td>${row.Status || ""}</td>
             <td>${row.FaceImage ? `<a href="${row.FaceImage}" target="_blank"><img src="${row.FaceImage}" class="face-thumb" loading="lazy"></a>` : ""}</td>
           </tr>`;
@@ -247,14 +270,14 @@
     }
 
     function applyFilter(type, btn = null) {
-      currentFilter = type; currentStartDate = ""; currentEndDate = ""; shiftFilter = null;
+      currentFilter = type; currentStartDate = ""; currentEndDate = "";
       setActiveButton(btn); loadData();
     }
 
     function applyDateRange() {
       currentStartDate = document.getElementById("startDate").value;
       currentEndDate = document.getElementById("endDate").value;
-      currentFilter = "custom"; shiftFilter = null;
+      currentFilter = "custom";
       setActiveButton(null); loadData();
     }
 
@@ -266,12 +289,11 @@
       let url = `/api/export-excel?filter=${currentFilter}&empId=${currentEmpId}`;
       if (currentStartDate && currentEndDate) url += `&startDate=${currentStartDate}&endDate=${currentEndDate}`;
       if (currentSearch) url += `&search=${encodeURIComponent(currentSearch)}`;
-      if (shiftFilter) url += `&shift=${shiftFilter}`;
       window.location.href = url;
     }
 
     function resetAll() {
-      currentFilter = "all"; currentStartDate = ""; currentEndDate = ""; currentSearch = ""; shiftFilter = null;
+      currentFilter = "all"; currentStartDate = ""; currentEndDate = ""; currentSearch = "";
       currentSort = { column: null, order: null }; currentPage = 1; rowsPerPage = 10;
       document.getElementById("startDate").value = ""; document.getElementById("endDate").value = "";
       document.getElementById("searchBox").value = ""; document.getElementById("rowsPerPage").value = "10";
@@ -279,18 +301,16 @@
       loadData();
     }
 
-    function applyShiftFilter(shift, btn = null) {
-      shiftFilter = shift; currentPage = 1;
-      setActiveButton(btn); loadData();
-    }
-
     // Nếu đã có sessionStorage → tự login
     window.onload = () => {
       const savedId = sessionStorage.getItem("EmployeeId");
+      const savedName = sessionStorage.getItem("EmployeeName");
       if (savedId) {
         currentEmpId = savedId;
+        currentEmpName = savedName || "";
         document.getElementById("loginBox").style.display = "none";
         document.getElementById("mainContent").style.display = "block";
+        document.getElementById("welcomeMsg").innerText = `👋 Xin chào, ${currentEmpName}`;
         loadData();
       }
     };
