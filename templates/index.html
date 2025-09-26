@@ -8,29 +8,18 @@
     body { font-family: Arial, sans-serif; background: #f4f6f9; padding: 20px; }
     h2 { text-align: center; margin-bottom: 20px; }
 
-    .top-bar {
-      display: flex; justify-content: flex-end; align-items: center;
-      margin-bottom: 10px; font-size: 14px;
-    }
-    .top-bar span { margin-right: 10px; font-weight: bold; }
-    .top-bar button {
-      padding: 4px 8px; font-size: 13px; border: 1px solid #007bff; border-radius: 4px;
-      background: #fff; cursor: pointer; transition: 0.2s;
-    }
-    .top-bar button:hover { background: #007bff; color: #fff; }
-
     .login-box {
-      max-width: 320px; margin: 50px auto; padding: 20px;
-      background: #fff; border: 1px solid #ddd; border-radius: 6px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      max-width: 400px; margin: 80px auto; padding: 20px;
+      background: #fff; border: 1px solid #ddd; border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1); text-align: center;
     }
-    .login-box h3 { text-align: center; margin-bottom: 15px; }
-    .login-box input, .login-box button {
-      width: 100%; padding: 8px; margin: 6px 0;
+    .login-box input {
+      width: 90%; padding: 10px; margin: 10px 0;
       border: 1px solid #ccc; border-radius: 4px; font-size: 14px;
     }
     .login-box button {
-      background: #007bff; color: #fff; cursor: pointer; font-weight: bold;
+      padding: 8px 15px; background: #007bff; color: #fff;
+      border: none; border-radius: 4px; cursor: pointer;
     }
     .login-box button:hover { background: #0056b3; }
 
@@ -64,28 +53,23 @@
     .pagination button { margin: 0 2px; padding: 5px 10px; }
 
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    #mainContent { display: none; }
   </style>
 </head>
 <body>
   <h2>📌 Dữ liệu chấm công GPS</h2>
 
-  <!-- Thanh chào -->
-  <div class="top-bar" id="welcomeBox" style="display:none;">
-    <span>Xin chào, <span id="empName"></span></span>
-    <button onclick="logout()">🚪 Đăng xuất</button>
-  </div>
-
-  <!-- Form login -->
+  <!-- Form đăng nhập -->
   <div id="loginBox" class="login-box">
-    <h3>🔐 Đăng nhập</h3>
+    <h3>Đăng nhập</h3>
     <input type="text" id="empIdInput" placeholder="Nhập EmployeeId...">
+    <br>
     <button onclick="login()">Đăng nhập</button>
-    <p id="loginMsg" style="color:red; font-size:13px; text-align:center;"></p>
+    <p id="loginMessage" style="color:red; font-size:14px;"></p>
   </div>
 
   <!-- Nội dung chính -->
-  <div id="mainContent" style="display:none;">
-
+  <div id="mainContent">
     <!-- Bộ lọc nhanh -->
     <div class="controls">
       <label><b>Lọc nhanh:</b></label>
@@ -147,6 +131,7 @@
         <tbody id="dataBody"></tbody>
       </table>
     </div>
+
     <div class="pagination" id="pagination"></div>
   </div>
 
@@ -154,7 +139,7 @@
     let currentFilter = "all", currentStartDate = "", currentEndDate = "", currentSearch = "";
     let rawData = [], currentSort = { column: null, order: null };
     let currentPage = 1, rowsPerPage = 10, shiftFilter = null;
-    let currentEmpId = null, currentEmpName = "";
+    let currentEmpId = null;
 
     function setActiveButton(btn) {
       document.querySelectorAll(".controls button").forEach(b => b.classList.remove("active"));
@@ -164,45 +149,26 @@
     async function login() {
       const empId = document.getElementById("empIdInput").value.trim();
       if (!empId) {
-        document.getElementById("loginMsg").innerText = "⚠️ Vui lòng nhập EmployeeId!";
+        document.getElementById("loginMessage").innerText = "Vui lòng nhập EmployeeId!";
         return;
       }
-      const res = await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ EmployeeId: empId })
-      });
+
+      const res = await fetch(`/login?empId=${empId}`);
       const data = await res.json();
-      if (res.ok && data.success) {
-        currentEmpId = data.EmployeeId;
-        currentEmpName = data.EmployeeName;
 
-        // 👉 Lưu vào localStorage
-        localStorage.setItem("empId", currentEmpId);
-        localStorage.setItem("empName", currentEmpName);
-
-        document.getElementById("empName").innerText = currentEmpName;
+      if (data.success) {
+        currentEmpId = empId;
+        sessionStorage.setItem("EmployeeId", empId);
         document.getElementById("loginBox").style.display = "none";
-        document.getElementById("welcomeBox").style.display = "block";
         document.getElementById("mainContent").style.display = "block";
         loadData();
       } else {
-        document.getElementById("loginMsg").innerText = data.error || "❌ Đăng nhập thất bại!";
+        document.getElementById("loginMessage").innerText = data.message;
       }
     }
 
-    function logout() {
-      localStorage.removeItem("empId");
-      localStorage.removeItem("empName");
-      currentEmpId = null;
-      currentEmpName = "";
-      document.getElementById("welcomeBox").style.display = "none";
-      document.getElementById("mainContent").style.display = "none";
-      document.getElementById("loginBox").style.display = "block";
-    }
-
     async function loadData() {
-      let url = `/api/attendances?filter=${currentFilter}`;
+      let url = `/api/attendances?filter=${currentFilter}&empId=${currentEmpId}`;
       if (currentStartDate && currentEndDate) url += `&startDate=${currentStartDate}&endDate=${currentEndDate}`;
       if (currentSearch) url += `&search=${encodeURIComponent(currentSearch)}`;
       if (shiftFilter) url += `&shift=${shiftFilter}`;
@@ -260,6 +226,7 @@
     }
 
     function goToPage(page) { currentPage = page; renderTable(); }
+
     function sortTable(column) {
       if (currentSort.column === column) {
         currentSort.order = currentSort.order === "asc" ? "desc" : currentSort.order === "desc" ? null : "asc";
@@ -270,6 +237,7 @@
       }
       renderTable();
     }
+
     function updateSortIcons() {
       document.querySelectorAll("th.sortable").forEach(th => th.classList.remove("asc", "desc"));
       if (currentSort.column && currentSort.order) {
@@ -278,24 +246,50 @@
       }
     }
 
-    function applyFilter(type, btn = null) { currentFilter = type; currentStartDate = ""; currentEndDate = ""; shiftFilter = null; setActiveButton(btn); loadData(); }
-    function applyDateRange() { currentStartDate = document.getElementById("startDate").value; currentEndDate = document.getElementById("endDate").value; currentFilter = "custom"; shiftFilter = null; setActiveButton(null); loadData(); }
-    function applySearch() { currentSearch = document.getElementById("searchBox").value; loadData(); }
-    function changeRowsPerPage() { rowsPerPage = parseInt(document.getElementById("rowsPerPage").value); currentPage = 1; renderTable(); }
-    function exportExcel() { let url = `/api/export-excel?filter=${currentFilter}`; if (currentStartDate && currentEndDate) url += `&startDate=${currentStartDate}&endDate=${currentEndDate}`; if (currentSearch) url += `&search=${encodeURIComponent(currentSearch)}`; if (shiftFilter) url += `&shift=${shiftFilter}`; window.location.href = url; }
-    function resetAll() { currentFilter = "all"; currentStartDate = ""; currentEndDate = ""; currentSearch = ""; shiftFilter = null; currentSort = { column: null, order: null }; currentPage = 1; rowsPerPage = 10; document.getElementById("startDate").value = ""; document.getElementById("endDate").value = ""; document.getElementById("searchBox").value = ""; document.getElementById("rowsPerPage").value = "10"; setActiveButton(document.querySelector("button[onclick*='all']")); loadData(); }
-    function applyShiftFilter(shift, btn = null) { shiftFilter = shift; currentPage = 1; setActiveButton(btn); loadData(); }
+    function applyFilter(type, btn = null) {
+      currentFilter = type; currentStartDate = ""; currentEndDate = ""; shiftFilter = null;
+      setActiveButton(btn); loadData();
+    }
 
-    // 👉 Khi load trang, kiểm tra localStorage
-    window.onload = function() {
-      const savedId = localStorage.getItem("empId");
-      const savedName = localStorage.getItem("empName");
-      if (savedId && savedName) {
+    function applyDateRange() {
+      currentStartDate = document.getElementById("startDate").value;
+      currentEndDate = document.getElementById("endDate").value;
+      currentFilter = "custom"; shiftFilter = null;
+      setActiveButton(null); loadData();
+    }
+
+    function applySearch() { currentSearch = document.getElementById("searchBox").value; loadData(); }
+
+    function changeRowsPerPage() { rowsPerPage = parseInt(document.getElementById("rowsPerPage").value); currentPage = 1; renderTable(); }
+
+    function exportExcel() {
+      let url = `/api/export-excel?filter=${currentFilter}&empId=${currentEmpId}`;
+      if (currentStartDate && currentEndDate) url += `&startDate=${currentStartDate}&endDate=${currentEndDate}`;
+      if (currentSearch) url += `&search=${encodeURIComponent(currentSearch)}`;
+      if (shiftFilter) url += `&shift=${shiftFilter}`;
+      window.location.href = url;
+    }
+
+    function resetAll() {
+      currentFilter = "all"; currentStartDate = ""; currentEndDate = ""; currentSearch = ""; shiftFilter = null;
+      currentSort = { column: null, order: null }; currentPage = 1; rowsPerPage = 10;
+      document.getElementById("startDate").value = ""; document.getElementById("endDate").value = "";
+      document.getElementById("searchBox").value = ""; document.getElementById("rowsPerPage").value = "10";
+      setActiveButton(document.querySelector("button[onclick*='all']"));
+      loadData();
+    }
+
+    function applyShiftFilter(shift, btn = null) {
+      shiftFilter = shift; currentPage = 1;
+      setActiveButton(btn); loadData();
+    }
+
+    // Nếu đã có sessionStorage → tự login
+    window.onload = () => {
+      const savedId = sessionStorage.getItem("EmployeeId");
+      if (savedId) {
         currentEmpId = savedId;
-        currentEmpName = savedName;
-        document.getElementById("empName").innerText = currentEmpName;
         document.getElementById("loginBox").style.display = "none";
-        document.getElementById("welcomeBox").style.display = "block";
         document.getElementById("mainContent").style.display = "block";
         loadData();
       }
