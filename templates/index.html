@@ -7,22 +7,6 @@
   <style>
     body { font-family: Arial, sans-serif; background: #f4f6f9; padding: 20px; }
     h2 { text-align: center; margin-bottom: 20px; }
-
-    .login-box {
-      max-width: 400px; margin: 80px auto; padding: 20px;
-      background: #fff; border: 1px solid #ddd; border-radius: 8px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1); text-align: center;
-    }
-    .login-box input {
-      width: 90%; padding: 10px; margin: 10px 0;
-      border: 1px solid #ccc; border-radius: 4px; font-size: 14px;
-    }
-    .login-box button {
-      padding: 8px 15px; background: #007bff; color: #fff;
-      border: none; border-radius: 4px; cursor: pointer;
-    }
-    .login-box button:hover { background: #0056b3; }
-
     .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
     .controls input, .controls select, .controls button {
       padding: 6px 12px; font-size: 14px; border: 1px solid #007bff; border-radius: 4px;
@@ -30,46 +14,37 @@
     }
     .controls button:hover { background: #007bff; color: #fff; }
     .controls button.active { background: #007bff; color: #fff; font-weight: bold; }
-
-    .table-container { max-height: 500px; overflow-y: auto; border: 1px solid #ccc; animation: fadeIn 0.4s ease; }
+    .table-container { max-height: 500px; overflow-y: auto; border: 1px solid #ccc; }
     table { width: 100%; border-collapse: collapse; background: white; font-size: 14px; }
     th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: middle; }
-    th {
-      background: #007bff; color: white; cursor: pointer; user-select: none;
-      position: sticky; top: 0; z-index: 2;
-    }
+    th { background: #007bff; color: white; cursor: pointer; user-select: none; position: sticky; top: 0; z-index: 2; }
     tr:nth-child(even) { background: #f9f9f9; }
-
     .sortable:after { content: " ⇅"; font-size: 12px; }
     .asc:after { content: " ↑"; }
     .desc:after { content: " ↓"; }
-
-    img.face-thumb {
-      width: 60px; height: 45px; object-fit: cover;
-      border-radius: 4px; border:1px solid #ccc; cursor:pointer;
-    }
-
+    img.face-thumb { width: 60px; height: 45px; object-fit: cover; border-radius: 4px; border:1px solid #ccc; }
     .pagination { margin-top: 15px; text-align: center; }
     .pagination button { margin: 0 2px; padding: 5px 10px; }
-
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-    #mainContent { display: none; }
+    #welcomeBox { text-align:right; font-weight:bold; color:#007bff; margin-bottom:10px; display:none; }
   </style>
 </head>
 <body>
   <h2>📌 Dữ liệu chấm công GPS</h2>
 
-  <!-- Form đăng nhập -->
-  <div id="loginBox" class="login-box">
-    <h3>Đăng nhập</h3>
-    <input type="text" id="empIdInput" placeholder="Nhập EmployeeId...">
-    <br>
-    <button onclick="login()">Đăng nhập</button>
-    <p id="loginMessage" style="color:red; font-size:14px;"></p>
+  <!-- Lời chào -->
+  <div id="welcomeBox">👋 Xin chào, <span id="empName"></span></div>
+
+  <!-- Form login -->
+  <div id="loginBox" style="text-align:center; margin-top:30px;">
+    <h3>🔑 Đăng nhập</h3>
+    <input type="text" id="loginEmpId" placeholder="Nhập Mã NV (S002, S018, S019)" style="padding:8px; font-size:14px;">
+    <button onclick="doLogin()" style="padding:8px 16px;">Đăng nhập</button>
+    <p id="loginStatus" style="color:red;"></p>
   </div>
 
   <!-- Nội dung chính -->
-  <div id="mainContent">
+  <div id="mainContent" style="display:none;">
+
     <!-- Bộ lọc nhanh -->
     <div class="controls">
       <label><b>Lọc nhanh:</b></label>
@@ -139,31 +114,31 @@
     let currentFilter = "all", currentStartDate = "", currentEndDate = "", currentSearch = "";
     let rawData = [], currentSort = { column: null, order: null };
     let currentPage = 1, rowsPerPage = 10, shiftFilter = null;
-    let currentEmpId = null;
+    let currentEmpId = null, currentEmpName = "";
 
     function setActiveButton(btn) {
       document.querySelectorAll(".controls button").forEach(b => b.classList.remove("active"));
       if (btn) btn.classList.add("active");
     }
 
-    async function login() {
-      const empId = document.getElementById("empIdInput").value.trim();
+    async function doLogin() {
+      const empId = document.getElementById("loginEmpId").value.trim();
       if (!empId) {
-        document.getElementById("loginMessage").innerText = "Vui lòng nhập EmployeeId!";
+        document.getElementById("loginStatus").innerText = "⚠️ Vui lòng nhập mã NV";
         return;
       }
-
       const res = await fetch(`/login?empId=${empId}`);
       const data = await res.json();
-
-      if (data.success) {
-        currentEmpId = empId;
-        sessionStorage.setItem("EmployeeId", empId);
+      if (res.ok && data.success) {
+        currentEmpId = data.EmployeeId;
+        currentEmpName = data.EmployeeName;
+        document.getElementById("empName").innerText = currentEmpName;
         document.getElementById("loginBox").style.display = "none";
+        document.getElementById("welcomeBox").style.display = "block";
         document.getElementById("mainContent").style.display = "block";
         loadData();
       } else {
-        document.getElementById("loginMessage").innerText = data.message;
+        document.getElementById("loginStatus").innerText = data.message || "❌ Đăng nhập thất bại";
       }
     }
 
@@ -194,7 +169,6 @@
       const start = (currentPage - 1) * rowsPerPage;
       const end = start + rowsPerPage;
       const pageData = data.slice(start, end);
-
       const tbody = document.getElementById("dataBody");
       tbody.innerHTML = "";
       pageData.forEach(row => {
@@ -283,17 +257,6 @@
       shiftFilter = shift; currentPage = 1;
       setActiveButton(btn); loadData();
     }
-
-    // Nếu đã có sessionStorage → tự login
-    window.onload = () => {
-      const savedId = sessionStorage.getItem("EmployeeId");
-      if (savedId) {
-        currentEmpId = savedId;
-        document.getElementById("loginBox").style.display = "none";
-        document.getElementById("mainContent").style.display = "block";
-        loadData();
-      }
-    };
   </script>
 </body>
 </html>
