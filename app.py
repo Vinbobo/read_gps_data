@@ -60,7 +60,7 @@ def build_query(filter_type, start_date, end_date, search, shift=None):
 
     # ---- Lọc theo tên NV ----
     if search:
-        query["EmployeeName"] = {"$regex": re.compile(search, re.IGNORECASE)}
+        query["EmployeeId"] = {"$regex": re.compile(search, re.IGNORECASE)}
 
     # ---- Lọc theo ca ----
     if shift:
