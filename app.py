@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify, send_file, request, session, redirect, url_for
+from flask import Flask, render_template, jsonify, send_file, request
 from pymongo import MongoClient
 from flask_cors import CORS
 import os
@@ -9,7 +9,6 @@ import calendar
 import re
 
 app = Flask(__name__, template_folder="templates")
-app.secret_key = os.getenv("SECRET_KEY", "supersecret")  # cần để dùng session
 CORS(app)
 
 # ---- Timezone VN ----
@@ -30,36 +29,38 @@ try:
     client = MongoClient(MONGO_URI)
     db = client[DB_NAME]
     collection = db["alt_checkins"]
-    idx_collection = db["idx_collection"]   # ✅ nơi chứa danh sách nhân viên
+    idx_collection = db["idx_collection"]
 except Exception as e:
     raise RuntimeError(f"❌ Không thể kết nối MongoDB: {e}")
 
+# ---- Danh sách NV được phép vào trang xem dữ liệu ----
+ALLOWED_IDS = {"S002", "S018", "S019"}
 
-# ---- Danh sách EmployeeId có quyền xem ----
-AUTHORIZED_IDS = {"S002", "S018", "S019"}
+
+# ---- API: Trang index ----
+@app.route("/")
+def index():
+    return render_template("index.html")
 
 
-# ---- Middleware kiểm tra quyền ----
-@app.before_request
-def restrict_access():
-    if request.endpoint in ["index", "get_attendances", "export_to_excel"]:
-        # Lấy EmployeeId từ session hoặc query string
-        emp_id = session.get("EmployeeId") or request.args.get("empId")
+# ---- API: Login ----
+@app.route("/login", methods=["GET"])
+def login():
+    emp_id = request.args.get("empId")
+    if not emp_id:
+        return jsonify({"success": False, "message": "❌ Bạn cần nhập EmployeeId"}), 400
 
-        if not emp_id:
-            return "🚫 Bạn cần cung cấp EmployeeId để truy cập.", 403
-
-        # Kiểm tra trong idx_collection có tồn tại không
-        user = idx_collection.find_one({"EmployeeId": emp_id})
-        if not user:
-            return "🚫 EmployeeId không tồn tại trong hệ thống.", 403
-
-        # Kiểm tra quyền
-        if emp_id not in AUTHORIZED_IDS:
-            return "🚫 Bạn không có quyền truy cập trang này.", 403
-
-        # ✅ Nếu pass → lưu vào session
-        session["EmployeeId"] = emp_id
+    if emp_id in ALLOWED_IDS:
+        emp = idx_collection.find_one({"EmployeeId": emp_id}, {"_id": 0, "EmployeeName": 1})
+        emp_name = emp["EmployeeName"] if emp else emp_id
+        return jsonify({
+            "success": True,
+            "message": "✅ Đăng nhập thành công",
+            "EmployeeId": emp_id,
+            "EmployeeName": emp_name
+        })
+    else:
+        return jsonify({"success": False, "message": "🚫 EmployeeId không có quyền truy cập"}), 403
 
 
 # ---- Xây dựng query cho filter ----
@@ -84,9 +85,9 @@ def build_query(filter_type, start_date, end_date, search, shift=None):
         end = today.replace(month=12, day=31).strftime("%Y-%m-%d")
         query["CheckinDate"] = {"$gte": start, "$lte": end}
 
-    # ---- Lọc theo EmployeeId ----
+    # ---- Lọc theo tên NV ----
     if search:
-        query["EmployeeId"] = {"$regex": re.compile(search, re.IGNORECASE)}
+        query["EmployeeName"] = {"$regex": re.compile(search, re.IGNORECASE)}
 
     # ---- Lọc theo ca ----
     if shift:
@@ -100,16 +101,14 @@ def build_query(filter_type, start_date, end_date, search, shift=None):
     return query
 
 
-# ---- API: Trang index ----
-@app.route("/")
-def index():
-    return render_template("index.html")
-
-
 # ---- API: Lấy danh sách chấm công ----
 @app.route("/api/attendances", methods=["GET"])
 def get_attendances():
     try:
+        emp_id = request.args.get("empId")
+        if emp_id not in ALLOWED_IDS:
+            return jsonify({"error": "🚫 Không có quyền truy cập!"}), 403
+
         filter_type = request.args.get("filter", "all")
         start_date = request.args.get("startDate")
         end_date = request.args.get("endDate")
@@ -146,6 +145,10 @@ def get_attendances():
 @app.route("/api/export-excel", methods=["GET"])
 def export_to_excel():
     try:
+        emp_id = request.args.get("empId")
+        if emp_id not in ALLOWED_IDS:
+            return jsonify({"error": "🚫 Không có quyền xuất Excel!"}), 403
+
         filter_type = request.args.get("filter", "all")
         start_date = request.args.get("startDate")
         end_date = request.args.get("endDate")
@@ -190,10 +193,18 @@ def export_to_excel():
             df.to_excel(writer, sheet_name="Chấm công", index=False)
         output.seek(0)
 
+        shift_name = f"_{shift}" if shift else ""
+        if start_date and end_date:
+            filename = f"Danh_sach_cham_cong{shift_name}_{start_date}_to_{end_date}.xlsx"
+        elif search:
+            filename = f"Danh_sach_cham_cong{shift_name}_{search}_{datetime.now().strftime('%d-%m-%Y')}.xlsx"
+        else:
+            filename = f"Danh_sach_cham_cong{shift_name}_{filter_type}_{datetime.now().strftime('%d-%m-%Y')}.xlsx"
+
         return send_file(
             output,
             as_attachment=True,
-            download_name=f"Danh_sach_cham_cong.xlsx",
+            download_name=filename,
             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
     except Exception as e:
