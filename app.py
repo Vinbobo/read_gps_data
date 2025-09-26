@@ -25,7 +25,7 @@ collection = db["alt_checkins"]
 idx_collection = db["idx_collection"]   # ✅ dùng để kiểm tra quyền
 
 # Danh sách EmployeeId được phép
-ALLOWED_IDS = {"S002", "S018", "S019"}
+ALLOWED_IDS = {"A000", "A001", "A002","A003"}
 
 
 @app.route("/login", methods=["GET"])
