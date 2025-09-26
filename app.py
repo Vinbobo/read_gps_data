@@ -48,7 +48,7 @@ def index():
 def login():
     emp_id = request.args.get("empId")
     if not emp_id:
-        return jsonify({"success": False, "message": "❌ Bạn cần nhập EmployeeId"}), 400
+        return jsonify({"success": False, "message": "❌ Bạn cần nhập mã nhân viên"}), 400
 
     if emp_id in ALLOWED_IDS:
         emp = idx_collection.find_one({"EmployeeId": emp_id}, {"_id": 0, "EmployeeName": 1})
@@ -60,7 +60,7 @@ def login():
             "EmployeeName": emp_name
         })
     else:
-        return jsonify({"success": False, "message": "🚫 EmployeeId không có quyền truy cập"}), 403
+        return jsonify({"success": False, "message": "🚫 Mã nhân viên của bạn không có quyền truy cập"}), 403
 
 
 # ---- Xây dựng query cho filter ----
