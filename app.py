@@ -34,7 +34,7 @@ except Exception as e:
     raise RuntimeError(f"❌ Không thể kết nối MongoDB: {e}")
 
 # ---- Danh sách NV được phép vào trang xem dữ liệu ----
-ALLOWED_IDS = {"S002", "S018", "S019"}
+ALLOWED_IDS = {"Admin","Admin01", "Admin02", "Admin03"}
 
 
 # ---- API: Trang index ----
