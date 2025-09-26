@@ -3,127 +3,297 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dữ liệu chấm công</title>
+  <title>Dữ liệu chấm công GPS</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #f4f6f9; margin: 0; padding: 0; display: flex; flex-direction: column; min-height: 100vh; }
-    .container { flex: 1; padding: 20px; }
-    h2 { text-align: center; color: #2c3e50; margin-bottom: 15px; }
-    .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-    .search-box input { padding: 5px; width: 250px; }
-    .refresh-btn { padding: 6px 12px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; }
-    .refresh-btn:hover { background: #219150; }
+    body { font-family: Arial, sans-serif; background: #f4f6f9; padding: 20px; }
+    h2 { text-align: center; margin-bottom: 20px; }
 
-    .table-container { max-height: 400px; overflow-y: auto; border: 1px solid #ccc; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-    th { background: #3498db; color: white; cursor: pointer; position: sticky; top: 0; z-index: 1; }
+    .login-box {
+      max-width: 400px; margin: 80px auto; padding: 20px;
+      background: #fff; border: 1px solid #ddd; border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1); text-align: center;
+    }
+    .login-box input {
+      width: 90%; padding: 10px; margin: 10px 0;
+      border: 1px solid #ccc; border-radius: 4px; font-size: 14px;
+    }
+    .login-box button {
+      padding: 8px 15px; background: #007bff; color: #fff;
+      border: none; border-radius: 4px; cursor: pointer;
+    }
+    .login-box button:hover { background: #0056b3; }
+
+    .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
+    .controls input, .controls select, .controls button {
+      padding: 6px 12px; font-size: 14px; border: 1px solid #007bff; border-radius: 4px;
+      background: #fff; cursor: pointer; transition: all 0.2s;
+    }
+    .controls button:hover { background: #007bff; color: #fff; }
+    .controls button.active { background: #007bff; color: #fff; font-weight: bold; }
+
+    .table-container { max-height: 500px; overflow-y: auto; border: 1px solid #ccc; animation: fadeIn 0.4s ease; }
+    table { width: 100%; border-collapse: collapse; background: white; font-size: 14px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: middle; }
+    th {
+      background: #007bff; color: white; cursor: pointer; user-select: none;
+      position: sticky; top: 0; z-index: 2;
+    }
     tr:nth-child(even) { background: #f9f9f9; }
+
+    .sortable:after { content: " ⇅"; font-size: 12px; }
+    .asc:after { content: " ↑"; }
+    .desc:after { content: " ↓"; }
+
+    img.face-thumb {
+      width: 60px; height: 45px; object-fit: cover;
+      border-radius: 4px; border:1px solid #ccc; cursor:pointer;
+    }
+
+    .pagination { margin-top: 15px; text-align: center; }
+    .pagination button { margin: 0 2px; padding: 5px 10px; }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    #mainContent { display: none; }
   </style>
 </head>
 <body>
+  <h2>📌 Dữ liệu chấm công GPS</h2>
 
-  <div class="container">
-    <h2>Danh sách chấm công</h2>
-    <div class="toolbar">
-      <div class="search-box">
-        <input type="text" id="searchInput" placeholder="Tìm kiếm...">
-      </div>
-      <button class="refresh-btn" onclick="refreshData()">🔄 Làm mới</button>
+  <!-- Form đăng nhập -->
+  <div id="loginBox" class="login-box">
+    <h3>Đăng nhập</h3>
+    <input type="text" id="empIdInput" placeholder="Nhập EmployeeId...">
+    <br>
+    <button onclick="login()">Đăng nhập</button>
+    <p id="loginMessage" style="color:red; font-size:14px;"></p>
+  </div>
+
+  <!-- Nội dung chính -->
+  <div id="mainContent">
+    <!-- Bộ lọc nhanh -->
+    <div class="controls">
+      <label><b>Lọc nhanh:</b></label>
+      <button onclick="applyFilter('week', this)">Tuần này</button>
+      <button onclick="applyFilter('month', this)">Tháng này</button>
+      <button onclick="applyFilter('year', this)">Năm nay</button>
+      <button onclick="applyFilter('all', this)" class="active">Tất cả</button>
+      <button onclick="applyShiftFilter('sang', this)">Ca sáng</button>
+      <button onclick="applyShiftFilter('chieu', this)">Ca chiều</button>
     </div>
+
+    <!-- Lọc theo khoảng ngày -->
+    <div class="controls">
+      <label><b>Từ ngày:</b></label>
+      <input type="date" id="startDate">
+      <label><b>Đến ngày:</b></label>
+      <input type="date" id="endDate">
+      <button onclick="applyDateRange()">Áp dụng</button>
+    </div>
+
+    <!-- Tìm kiếm -->
+    <div class="controls">
+      <label><b>Tìm kiếm:</b></label>
+      <input type="text" id="searchBox" placeholder="Nhập tên nhân viên...">
+      <button onclick="applySearch()">Tìm</button>
+    </div>
+
+    <!-- Xuất Excel + Reset -->
+    <div class="controls">
+      <label><b>Số dòng/trang:</b></label>
+      <select id="rowsPerPage" onchange="changeRowsPerPage()">
+        <option value="10" selected>10</option>
+        <option value="20">20</option>
+        <option value="50">50</option>
+        <option value="100">100</option>
+      </select>
+      <button onclick="exportExcel()">📥 Xuất Excel</button>
+      <button onclick="loadData()">🔄 Làm mới</button>
+      <button onclick="resetAll()">♻️ Reset</button>
+    </div>
+
+    <!-- Bảng dữ liệu -->
     <div class="table-container">
       <table>
         <thead>
           <tr>
-            <th onclick="sortTable(0)">Mã NV</th>
-            <th onclick="sortTable(1)">Tên NV</th>
-            <th onclick="sortTable(2)">Địa chỉ</th>
-            <th onclick="sortTable(3)">Thời gian</th>
-            <th onclick="sortTable(4)">Status</th>
+            <th class="sortable" onclick="sortTable('EmployeeId')">Mã NV</th>
+            <th class="sortable" onclick="sortTable('EmployeeName')">Tên nhân viên</th>
+            <th class="sortable" onclick="sortTable('ProjectId')">ID Dự án</th>
+            <th class="sortable" onclick="sortTable('Tasks')">Công việc</th>
+            <th class="sortable" onclick="sortTable('OtherNote')">Khác</th>
+            <th class="sortable" onclick="sortTable('Address')">Địa chỉ</th>
+            <th class="sortable" onclick="sortTable('CheckinTime')">Thời gian Check-in</th>
+            <th class="sortable" onclick="sortTable('Shift')">Ca làm việc</th>
+            <th class="sortable" onclick="sortTable('Status')">Trạng thái</th>
+            <th>Ảnh</th>
           </tr>
         </thead>
-        <tbody id="data-body"></tbody>
+        <tbody id="dataBody"></tbody>
       </table>
     </div>
+
+    <div class="pagination" id="pagination"></div>
   </div>
 
-
-
   <script>
-    let attendanceData = [];
+    let currentFilter = "all", currentStartDate = "", currentEndDate = "", currentSearch = "";
+    let rawData = [], currentSort = { column: null, order: null };
+    let currentPage = 1, rowsPerPage = 10, shiftFilter = null;
+    let currentEmpId = null;
 
-    async function loadData() {
-      try {
-        const res = await fetch("/api/attendances");
-        const data = await res.json();
-        attendanceData = data;
-        renderTable(data);
-        console.log("Dữ liệu đã được làm mới:", new Date().toLocaleTimeString());
-      } catch (err) {
-        console.error("Lỗi tải dữ liệu:", err);
+    function setActiveButton(btn) {
+      document.querySelectorAll(".controls button").forEach(b => b.classList.remove("active"));
+      if (btn) btn.classList.add("active");
+    }
+
+    async function login() {
+      const empId = document.getElementById("empIdInput").value.trim();
+      if (!empId) {
+        document.getElementById("loginMessage").innerText = "Vui lòng nhập EmployeeId!";
+        return;
+      }
+
+      const res = await fetch(`/login?empId=${empId}`);
+      const data = await res.json();
+
+      if (data.success) {
+        currentEmpId = empId;
+        sessionStorage.setItem("EmployeeId", empId);
+        document.getElementById("loginBox").style.display = "none";
+        document.getElementById("mainContent").style.display = "block";
+        loadData();
+      } else {
+        document.getElementById("loginMessage").innerText = data.message;
       }
     }
 
-    function renderTable(data) {
-      const tbody = document.getElementById("data-body");
+    async function loadData() {
+      let url = `/api/attendances?filter=${currentFilter}&empId=${currentEmpId}`;
+      if (currentStartDate && currentEndDate) url += `&startDate=${currentStartDate}&endDate=${currentEndDate}`;
+      if (currentSearch) url += `&search=${encodeURIComponent(currentSearch)}`;
+      if (shiftFilter) url += `&shift=${shiftFilter}`;
+      const res = await fetch(url);
+      rawData = await res.json();
+      currentPage = 1;
+      renderTable();
+    }
+
+    function renderTable() {
+      let data = [...rawData];
+      if (currentSort.column && currentSort.order) {
+        data.sort((a, b) => {
+          let valA = a[currentSort.column] || "";
+          let valB = b[currentSort.column] || "";
+          if (Array.isArray(valA)) valA = valA.join(", ");
+          if (Array.isArray(valB)) valB = valB.join(", ");
+          if (currentSort.order === "asc") return valA > valB ? 1 : -1;
+          if (currentSort.order === "desc") return valA < valB ? 1 : -1;
+          return 0;
+        });
+      }
+      const start = (currentPage - 1) * rowsPerPage;
+      const end = start + rowsPerPage;
+      const pageData = data.slice(start, end);
+
+      const tbody = document.getElementById("dataBody");
       tbody.innerHTML = "";
-      data.forEach(row => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${row.EmployeeId || ""}</td>
-          <td>${row.EmployeeName || ""}</td>
-          <td>${row.Address || ""}</td>
-          <td>${row.CheckinTime ? new Date(row.CheckinTime).toLocaleString() : ""}</td>
-          <td>${row.Status || ""}</td>
-        `;
-        tbody.appendChild(tr);
+      pageData.forEach(row => {
+        tbody.innerHTML += `
+          <tr>
+            <td>${row.EmployeeId || ""}</td>
+            <td>${row.EmployeeName || ""}</td>
+            <td>${row.ProjectId || ""}</td>
+            <td>${row.Tasks ? row.Tasks.join(", ") : ""}</td>
+            <td>${row.OtherNote || ""}</td>
+            <td>${row.Address || ""}</td>
+            <td>${row.CheckinTime || ""}</td>
+            <td>${row.Shift || ""}</td>
+            <td>${row.Status || ""}</td>
+            <td>${row.FaceImage ? `<a href="${row.FaceImage}" target="_blank"><img src="${row.FaceImage}" class="face-thumb" loading="lazy"></a>` : ""}</td>
+          </tr>`;
       });
+      updateSortIcons();
+      renderPagination(data.length);
     }
 
-    // 🔎 Tìm kiếm
-    document.getElementById("searchInput").addEventListener("keyup", function () {
-      const keyword = this.value.toLowerCase();
-      const filtered = attendanceData.filter(row =>
-        (row.EmployeeId || "").toLowerCase().includes(keyword) ||
-        (row.EmployeeName || "").toLowerCase().includes(keyword) ||
-        (row.Address || "").toLowerCase().includes(keyword) ||
-        (row.Status || "").toLowerCase().includes(keyword)
-      );
-      renderTable(filtered);
-    });
-
-    // ↕️ Sắp xếp
-    let sortDirection = true;
-    function sortTable(colIndex) {
-      const keys = ["EmployeeId", "EmployeeName", "Address", "CheckinTime", "Status"];
-      const sorted = [...attendanceData].sort((a, b) => {
-        let valA = a[keys[colIndex]] || "";
-        let valB = b[keys[colIndex]] || "";
-
-        if (keys[colIndex] === "CheckinTime") {
-          valA = new Date(valA);
-          valB = new Date(valB);
-        }
-
-        if (valA < valB) return sortDirection ? -1 : 1;
-        if (valA > valB) return sortDirection ? 1 : -1;
-        return 0;
-      });
-
-      sortDirection = !sortDirection;
-      renderTable(sorted);
+    function renderPagination(totalRows) {
+      const pageCount = Math.ceil(totalRows / rowsPerPage);
+      const container = document.getElementById("pagination");
+      container.innerHTML = "";
+      for (let i = 1; i <= pageCount; i++) {
+        container.innerHTML += `<button onclick="goToPage(${i})" ${i===currentPage ? "style='font-weight:bold;'" : ""}>${i}</button>`;
+      }
     }
 
-    // 🔄 Nút làm mới
-    function refreshData() {
-      document.getElementById("searchInput").value = "";
+    function goToPage(page) { currentPage = page; renderTable(); }
+
+    function sortTable(column) {
+      if (currentSort.column === column) {
+        currentSort.order = currentSort.order === "asc" ? "desc" : currentSort.order === "desc" ? null : "asc";
+        if (!currentSort.order) currentSort.column = null;
+      } else {
+        currentSort.column = column;
+        currentSort.order = "asc";
+      }
+      renderTable();
+    }
+
+    function updateSortIcons() {
+      document.querySelectorAll("th.sortable").forEach(th => th.classList.remove("asc", "desc"));
+      if (currentSort.column && currentSort.order) {
+        const th = document.querySelector(`th.sortable[onclick="sortTable('${currentSort.column}')"]`);
+        if (th) th.classList.add(currentSort.order);
+      }
+    }
+
+    function applyFilter(type, btn = null) {
+      currentFilter = type; currentStartDate = ""; currentEndDate = ""; shiftFilter = null;
+      setActiveButton(btn); loadData();
+    }
+
+    function applyDateRange() {
+      currentStartDate = document.getElementById("startDate").value;
+      currentEndDate = document.getElementById("endDate").value;
+      currentFilter = "custom"; shiftFilter = null;
+      setActiveButton(null); loadData();
+    }
+
+    function applySearch() { currentSearch = document.getElementById("searchBox").value; loadData(); }
+
+    function changeRowsPerPage() { rowsPerPage = parseInt(document.getElementById("rowsPerPage").value); currentPage = 1; renderTable(); }
+
+    function exportExcel() {
+      let url = `/api/export-excel?filter=${currentFilter}&empId=${currentEmpId}`;
+      if (currentStartDate && currentEndDate) url += `&startDate=${currentStartDate}&endDate=${currentEndDate}`;
+      if (currentSearch) url += `&search=${encodeURIComponent(currentSearch)}`;
+      if (shiftFilter) url += `&shift=${shiftFilter}`;
+      window.location.href = url;
+    }
+
+    function resetAll() {
+      currentFilter = "all"; currentStartDate = ""; currentEndDate = ""; currentSearch = ""; shiftFilter = null;
+      currentSort = { column: null, order: null }; currentPage = 1; rowsPerPage = 10;
+      document.getElementById("startDate").value = ""; document.getElementById("endDate").value = "";
+      document.getElementById("searchBox").value = ""; document.getElementById("rowsPerPage").value = "10";
+      setActiveButton(document.querySelector("button[onclick*='all']"));
       loadData();
     }
 
-    // 🚀 Auto refresh mỗi 1 phút
-    setInterval(refreshData, 60000);
+    function applyShiftFilter(shift, btn = null) {
+      shiftFilter = shift; currentPage = 1;
+      setActiveButton(btn); loadData();
+    }
 
-    // Gọi lần đầu
-    loadData();
+    // Nếu đã có sessionStorage → tự login
+    window.onload = () => {
+      const savedId = sessionStorage.getItem("EmployeeId");
+      if (savedId) {
+        currentEmpId = savedId;
+        document.getElementById("loginBox").style.display = "none";
+        document.getElementById("mainContent").style.display = "block";
+        loadData();
+      }
+    };
   </script>
 </body>
 </html>
