@@ -64,7 +64,7 @@ def login():
 
 
 # ---- Xây dựng query cho filter ----
-def build_query(filter_type, start_date, end_date, search, shift=None):
+def build_query(filter_type, start_date, end_date, search):
     query = {}
     today = datetime.now(VN_TZ)
 
@@ -89,15 +89,6 @@ def build_query(filter_type, start_date, end_date, search, shift=None):
     if search:
         query["EmployeeName"] = {"$regex": re.compile(search, re.IGNORECASE)}
 
-    # ---- Lọc theo ca ----
-    if shift:
-        if shift.lower() == "sang":
-            query["Shift"] = {"$regex": re.compile("Ca 1", re.IGNORECASE)}
-        elif shift.lower() == "chieu":
-            query["Shift"] = {"$regex": re.compile("Ca 2", re.IGNORECASE)}
-        else:
-            query["Shift"] = {"$regex": re.compile(shift, re.IGNORECASE)}
-
     return query
 
 
@@ -113,9 +104,8 @@ def get_attendances():
         start_date = request.args.get("startDate")
         end_date = request.args.get("endDate")
         search = request.args.get("search", "").strip()
-        shift = request.args.get("shift")
 
-        query = build_query(filter_type, start_date, end_date, search, shift)
+        query = build_query(filter_type, start_date, end_date, search)
 
         data = list(collection.find(query, {
             "_id": 0,
@@ -126,7 +116,7 @@ def get_attendances():
             "OtherNote": 1,
             "Address": 1,
             "CheckinTime": 1,
-            "Shift": 1,
+            "CheckType": 1,  # ✅ thay vì Shift
             "Status": 1,
             "FaceImage": 1
         }))
@@ -153,9 +143,8 @@ def export_to_excel():
         start_date = request.args.get("startDate")
         end_date = request.args.get("endDate")
         search = request.args.get("search", "").strip()
-        shift = request.args.get("shift")
 
-        query = build_query(filter_type, start_date, end_date, search, shift)
+        query = build_query(filter_type, start_date, end_date, search)
         data = list(collection.find(query, {
             "_id": 0,
             "EmployeeId": 1,
@@ -165,7 +154,7 @@ def export_to_excel():
             "OtherNote": 1,
             "Address": 1,
             "CheckinTime": 1,
-            "Shift": 1,
+            "CheckType": 1,  # ✅ thay thế cột Shift
             "Status": 1
         }))
 
@@ -183,8 +172,8 @@ def export_to_excel():
             "Tasks": "Công việc",
             "OtherNote": "Khác",
             "Address": "Địa chỉ",
-            "CheckinTime": "Thời gian Check-in",
-            "Shift": "Ca làm việc",
+            "CheckinTime": "Thời gian",
+            "CheckType": "Loại điểm danh",  # ✅ Check-in / Check-out
             "Status": "Trạng thái"
         }, inplace=True)
 
@@ -193,13 +182,12 @@ def export_to_excel():
             df.to_excel(writer, sheet_name="Chấm công", index=False)
         output.seek(0)
 
-        shift_name = f"_{shift}" if shift else ""
         if start_date and end_date:
-            filename = f"Danh_sach_cham_cong{shift_name}_{start_date}_to_{end_date}.xlsx"
+            filename = f"Danh_sach_cham_cong_{start_date}_to_{end_date}.xlsx"
         elif search:
-            filename = f"Danh_sach_cham_cong{shift_name}_{search}_{datetime.now().strftime('%d-%m-%Y')}.xlsx"
+            filename = f"Danh_sach_cham_cong_{search}_{datetime.now().strftime('%d-%m-%Y')}.xlsx"
         else:
-            filename = f"Danh_sach_cham_cong{shift_name}_{filter_type}_{datetime.now().strftime('%d-%m-%Y')}.xlsx"
+            filename = f"Danh_sach_cham_cong_{filter_type}_{datetime.now().strftime('%d-%m-%Y')}.xlsx"
 
         return send_file(
             output,
