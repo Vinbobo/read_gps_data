@@ -88,7 +88,6 @@ def build_query(filter_type, start_date, end_date, search):
     # ---- Lọc theo tên NV ----
     if search:
         query["EmployeeID"] = {"$regex": re.compile(search, re.IGNORECASE)}
-
     return query
 
 
