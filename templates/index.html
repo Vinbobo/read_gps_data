@@ -9,14 +9,14 @@
     :root {
       --bg: #f4f6f9;
       --card: #fff;
-      --primary: #F5821F;       /* Sun Automation cam */
-      --primary-dark: #E30613;  /* Sun Automation đỏ */
-      --amber: #FBB040;
-      --sun-grad: linear-gradient(135deg,#FBB040 0%,#F5821F 55%,#E30613 100%);
-      --success: #2e9e4f;
-      --danger: #E30613;
+      --primary: #EA7A1A;       /* Sun Automation cam - màu đơn sắc chủ đạo */
+      --primary-dark: #C15E10;  /* cam đậm */
+      --amber: #EA7A1A;
+      --sun-grad: #EA7A1A;      /* nền phẳng, không gradient */
+      --success: #EA7A1A;
+      --danger: #C0392B;        /* chỉ dùng cho lỗi/hủy */
       --muted: #6c757d;
-      --shadow: 0 3px 12px rgba(227,6,19,0.08);
+      --shadow: 0 2px 10px rgba(0,0,0,0.06);
     }
     body {
       font-family: "Segoe UI", Arial, sans-serif;
@@ -24,6 +24,10 @@
       margin: 0;
       padding: 20px;
       position: relative;
+      box-sizing: border-box;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
     h1 { text-align: center; color: var(--primary); }
     .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; align-items: center; }
@@ -116,8 +120,7 @@
     .export-range-option.active {
       display: block;
     }
-    header { padding: 10px 24px; background: #fff; border-bottom: 3px solid transparent;
-             border-image: var(--sun-grad) 1;
+    header { padding: 10px 24px; background: #fff; border-bottom: 2px solid var(--primary);
              display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
     .brand { display:flex; align-items:center; gap:12px; }
     .brand img { height:44px; width:auto; display:block; }
@@ -126,10 +129,11 @@
     .header-clock { font-size: 1rem; color:var(--primary); font-weight:bold; }
     .lang-switch { display:flex; border:1px solid var(--primary); border-radius:20px; overflow:hidden; }
     .lang-switch button { border:none; background:#fff; color:var(--primary); font-weight:bold;
-             padding:5px 12px; cursor:pointer; font-size:.85rem; margin:0; }
+             padding:3px 9px; cursor:pointer; font-size:.72rem; line-height:1.4; margin:0; }
     .lang-switch button.active { background: var(--primary); color:#fff; }
-    footer { margin-top: 40px; padding: 15px; background: #fff5ec; text-align: center; color: #8a5a2b;
-             border-top:1px solid #f3d7bd; }
+    footer { margin-top: auto; padding: 15px; background: #f7f7f8; text-align: center; color: #666;
+             border-top:1px solid #e4e4e7; }
+    #logoutBtn { align-self: flex-start; }
     #dataTabs button { background: #fff; color: var(--primary); border:1px solid var(--primary); }
     #dataTabs button.active { background: var(--sun-grad); color:#fff; border-color:var(--primary-dark); }
     h1 { color: var(--primary-dark); }
@@ -426,8 +430,7 @@
     function detectLang() {
       const saved = localStorage.getItem("appLang");
       if (saved === "vi" || saved === "en") return saved;
-      const nav = (navigator.language || navigator.userLanguage || "vi").toLowerCase();
-      return nav.startsWith("en") ? "en" : "vi";
+      return "vi"; // mặc định Tiếng Việt
     }
     let currentLang = detectLang();
     function t(key, vars) {
