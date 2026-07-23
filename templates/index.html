@@ -129,10 +129,10 @@
     .header-title { font-size: 1.5rem; font-weight: bold; color: var(--primary-dark); letter-spacing:.3px; }
     .header-actions { display:flex; align-items:center; gap:12px; }
     .header-clock { font-size: 1rem; color:var(--primary); font-weight:bold; }
-    .lang-switch { display:inline-flex; border:1px solid var(--primary); border-radius:6px; overflow:hidden; }
-    .lang-switch button { border:none; background:#fff; color:var(--primary); font-weight:bold;
-             padding:4px 12px; cursor:pointer; font-size:.75rem; line-height:1.2; margin:0; }
-    .lang-switch button + button { border-left:1px solid var(--primary); }
+    .lang-switch { display:inline-flex; gap:6px; align-items:center; }
+    .lang-switch button { border:1px solid var(--primary); background:#fff; color:var(--primary);
+             font-weight:bold; padding:4px 11px; cursor:pointer; font-size:.75rem; line-height:1.2;
+             border-radius:6px; margin:0; transition:all .12s ease; }
     .lang-switch button.active { background: var(--primary); color:#fff; }
     footer { margin-top: auto; padding: 15px; background: #f7f7f8; text-align: center; color: #666;
              border-top:1px solid #e4e4e7; }
@@ -145,11 +145,9 @@
     #toastContainer { position: fixed; top: 16px; right: 16px; z-index: 2000;
         display:flex; flex-direction:column; gap:10px; max-width:min(92vw,380px); }
     .toast { background:#fff; border-left:6px solid var(--primary); border-radius:10px;
-        box-shadow:0 6px 24px rgba(0,0,0,.18); padding:14px 40px 14px 16px; position:relative; font-size:.95rem; }
+        box-shadow:0 6px 24px rgba(0,0,0,.18); padding:14px 16px; position:relative; font-size:.95rem; }
     .toast.success { border-left-color:var(--success); }
     .toast.error { border-left-color:var(--danger); }
-    .toast .toast-close { position:absolute; top:8px; right:10px; border:none; background:transparent;
-        font-size:1.2rem; line-height:1; cursor:pointer; color:var(--muted); width:auto; margin:0; padding:0; }
   </style>
 </head>
 <body>
@@ -478,12 +476,10 @@
       const toast = document.createElement("div");
       toast.className = "toast " + (type === "error" ? "error" : "success");
       const title = type === "error" ? t("notice_title") : t("success_title");
-      toast.innerHTML = `<div style="font-weight:bold;margin-bottom:2px;">${title}</div><div>${msg}</div>` +
-                        `<button class="toast-close" aria-label="close">&times;</button>`;
+      toast.innerHTML = `<div style="font-weight:bold;margin-bottom:2px;">${title}</div><div>${msg}</div>`;
       container.appendChild(toast);
-      const remove = () => { if (toast.parentNode) toast.parentNode.removeChild(toast); };
-      toast.querySelector(".toast-close").addEventListener("click", remove);
-      setTimeout(remove, 15000);
+      // Tự tắt sau 10 giây
+      setTimeout(() => { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 10000);
     }
 
     function showDashboard() {
