@@ -125,9 +125,10 @@
     header { padding: 10px 24px; background: #fff; border-bottom: 2px solid var(--primary);
              display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
     .brand { display:flex; align-items:center; gap:12px; }
-    .brand img { height:44px; width:auto; display:block; }
-    .header-title { font-size: 1.5rem; font-weight: bold; color: var(--primary-dark); letter-spacing:.3px; }
-    .header-actions { display:flex; align-items:center; gap:12px; }
+    .brand img { height:44px; width:auto; display:block; flex-shrink:0; }
+    .header-title { font-size: 1.5rem; font-weight: bold; color: var(--primary-dark); letter-spacing:.3px;
+             line-height:1; margin:0; }
+    .header-actions { display:flex; align-items:center; gap:12px; flex-shrink:0; }
     .header-clock { font-size: 1rem; color:var(--primary); font-weight:bold; }
     .lang-switch { display:inline-flex; gap:6px; align-items:center; }
     .lang-switch button { border:1px solid var(--primary); background:#fff; color:var(--primary);
