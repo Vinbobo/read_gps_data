@@ -9,11 +9,14 @@
     :root {
       --bg: #f4f6f9;
       --card: #fff;
-      --primary: #007bff;
-      --success: #28a745;
-      --danger: #dc3545;
+      --primary: #F5821F;       /* Sun Automation cam */
+      --primary-dark: #E30613;  /* Sun Automation đỏ */
+      --amber: #FBB040;
+      --sun-grad: linear-gradient(135deg,#FBB040 0%,#F5821F 55%,#E30613 100%);
+      --success: #2e9e4f;
+      --danger: #E30613;
       --muted: #6c757d;
-      --shadow: 0 3px 12px rgba(0,0,0,0.08);
+      --shadow: 0 3px 12px rgba(227,6,19,0.08);
     }
     body {
       font-family: "Segoe UI", Arial, sans-serif;
@@ -113,67 +116,99 @@
     .export-range-option.active {
       display: block;
     }
-    header { padding: 10px 30px; background: #fff; border-bottom: 1px solid #ddd;
-             display:flex; justify-content:space-between; align-items:center; }
-    .header-title { font-size: 1.5rem; font-weight: bold; color: #333; }
-    .header-clock { font-size: 1rem; color:#007bff; }
-    footer { margin-top: 40px; padding: 15px; background: #f5f5f5; text-align: center; color: #666; }
+    header { padding: 10px 24px; background: #fff; border-bottom: 3px solid transparent;
+             border-image: var(--sun-grad) 1;
+             display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+    .brand { display:flex; align-items:center; gap:12px; }
+    .brand img { height:44px; width:auto; display:block; }
+    .header-title { font-size: 1.5rem; font-weight: bold; color: var(--primary-dark); letter-spacing:.3px; }
+    .header-actions { display:flex; align-items:center; gap:12px; }
+    .header-clock { font-size: 1rem; color:var(--primary); font-weight:bold; }
+    .lang-switch { display:flex; border:1px solid var(--primary); border-radius:20px; overflow:hidden; }
+    .lang-switch button { border:none; background:#fff; color:var(--primary); font-weight:bold;
+             padding:5px 12px; cursor:pointer; font-size:.85rem; margin:0; }
+    .lang-switch button.active { background: var(--primary); color:#fff; }
+    footer { margin-top: 40px; padding: 15px; background: #fff5ec; text-align: center; color: #8a5a2b;
+             border-top:1px solid #f3d7bd; }
+    #dataTabs button { background: #fff; color: var(--primary); border:1px solid var(--primary); }
+    #dataTabs button.active { background: var(--sun-grad); color:#fff; border-color:var(--primary-dark); }
+    h1 { color: var(--primary-dark); }
+    th { background: var(--sun-grad); }
+    /* Toast thông báo (ở lâu hơn + nút đóng) */
+    #toastContainer { position: fixed; top: 16px; right: 16px; z-index: 2000;
+        display:flex; flex-direction:column; gap:10px; max-width:min(92vw,380px); }
+    .toast { background:#fff; border-left:6px solid var(--primary); border-radius:10px;
+        box-shadow:0 6px 24px rgba(0,0,0,.18); padding:14px 40px 14px 16px; position:relative; font-size:.95rem; }
+    .toast.success { border-left-color:var(--success); }
+    .toast.error { border-left-color:var(--danger); }
+    .toast .toast-close { position:absolute; top:8px; right:10px; border:none; background:transparent;
+        font-size:1.2rem; line-height:1; cursor:pointer; color:var(--muted); width:auto; margin:0; padding:0; }
   </style>
 </head>
 <body>
+  <div id="toastContainer"></div>
   <header>
-    <span class="header-title">Sun Automation</span>
-    <span class="header-clock" id="headerClock"></span>
+    <div class="brand">
+      <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Sun Automation">
+      <span class="header-title">Sun Automation</span>
+    </div>
+    <div class="header-actions">
+      <span class="header-clock" id="headerClock"></span>
+      <div class="lang-switch" id="langSwitch">
+        <button type="button" data-lang="vi">VI</button>
+        <button type="button" data-lang="en">EN</button>
+      </div>
+    </div>
   </header>
-  <h1>Dữ liệu Chấm công & Nghỉ phép</h1>
+  <h1 data-i18n="page_title">Dữ liệu Chấm công & Nghỉ phép</h1>
   <div id="messageArea"></div>
   <div id="greeting"></div>
-  <button id="logoutBtn" style="background:var(--danger);">Đăng xuất</button>
+  <button id="logoutBtn" style="background:var(--danger);" data-i18n="logout">Đăng xuất</button>
   <div id="dataTabs">
-    <button id="tabAttendance" class="active" onclick="switchTab('attendance')">Điểm danh</button>
-    <button id="tabLeave" onclick="switchTab('leave')">Nghỉ phép</button>
+    <button id="tabAttendance" class="active" onclick="switchTab('attendance')" data-i18n="tab_attendance">Điểm danh</button>
+    <button id="tabLeave" onclick="switchTab('leave')" data-i18n="tab_leave">Nghỉ phép</button>
   </div>
   <div id="filters" class="controls">
-    <label><b>Bộ lọc:</b></label>
-    <button onclick="applyFilter('hôm nay')" id="btn-homnay">Hôm nay</button>
-    <button onclick="applyFilter('tuần')" id="btn-tuan">Tuần</button>
-    <button onclick="applyFilter('tháng')" id="btn-thang">Tháng</button>
-    <button onclick="applyFilter('năm')" id="btn-nam">Năm</button>
-    <button onclick="applyFilter('tất cả')" id="btn-tatca">Tất cả</button>
+    <label><b data-i18n="filter_label">Bộ lọc:</b></label>
+    <button onclick="applyFilter('hôm nay')" id="btn-homnay" data-i18n="f_today">Hôm nay</button>
+    <button onclick="applyFilter('tuần')" id="btn-tuan" data-i18n="f_week">Tuần</button>
+    <button onclick="applyFilter('tháng')" id="btn-thang" data-i18n="f_month">Tháng</button>
+    <button onclick="applyFilter('năm')" id="btn-nam" data-i18n="f_year">Năm</button>
+    <button onclick="applyFilter('tất cả')" id="btn-tatca" data-i18n="f_all">Tất cả</button>
   </div>
   <div id="dateFilter" class="controls">
-    <label><b>Từ ngày:</b></label><input type="date" id="startDate" />
-    <label><b>Đến ngày:</b></label><input type="date" id="endDate" />
-    <button onclick="applyDateRange()">Áp dụng</button>
+    <label><b data-i18n="from_date">Từ ngày:</b></label><input type="date" id="startDate" />
+    <label><b data-i18n="to_date">Đến ngày:</b></label><input type="date" id="endDate" />
+    <button onclick="applyDateRange()" data-i18n="apply">Áp dụng</button>
   </div>
   <div id="searchFilter" class="controls">
-    <input type="text" id="searchBox" placeholder="Nhập tên hoặc mã nhân viên..." />
-    <button onclick="applySearch()">Tìm kiếm</button>
+    <input type="text" id="searchBox" placeholder="Nhập tên hoặc mã nhân viên..." data-i18n-ph="search_ph" />
+    <button onclick="applySearch()" data-i18n="search">Tìm kiếm</button>
     <select id="rowsPerPage" onchange="updateRowsPerPage()">
-      <option value="5" selected>5 dòng</option>
-      <option value="10">10 dòng</option>
-      <option value="20">20 dòng</option>
-      <option value="25">25 dòng</option>
+      <option value="5" selected data-i18n="rows5">5 dòng</option>
+      <option value="10" data-i18n="rows10">10 dòng</option>
+      <option value="20" data-i18n="rows20">20 dòng</option>
+      <option value="25" data-i18n="rows25">25 dòng</option>
     </select>
-    <button onclick="handleExportClick()">Xuất Dữ Liệu</button>
-    <button onclick="refreshData()">Làm mới</button>
-    <button onclick="resetFilter()">Reset</button>
+    <button onclick="handleExportClick()" data-i18n="export">Xuất Dữ Liệu</button>
+    <button onclick="refreshData()" data-i18n="refresh">Làm mới</button>
+    <button onclick="resetFilter()" data-i18n="reset">Reset</button>
   </div>
   <div id="tableContainer" class="table-container table-scroll">
     <table id="dataTable">
       <thead>
         <tr>
-          <th onclick="sortTable('EmployeeId')">Mã NV</th>
-          <th onclick="sortTable('EmployeeName')">Tên nhân viên</th>
-          <th onclick="sortTable('CheckinDate')">Ngày Chấm công</th>
-          <th onclick="sortTable('CreationTime')">Giờ Chấm công</th>
-          <th onclick="sortTable('CheckType')">Loại Chấm công</th>
-          <th onclick="sortTable('ProjectId')">Mã dự án</th>
-          <th onclick="sortTable('Tasks')">Công việc</th>
-          <th>Ảnh</th>
-          <th>Địa chỉ</th>
-          <th>Vị trí</th>
-          <th onclick="sortTable('CheckinNote')">Ghi chú</th>
+          <th onclick="sortTable('EmployeeId')" data-i18n="col_emp_id">Mã NV</th>
+          <th onclick="sortTable('EmployeeName')" data-i18n="col_emp_name">Tên nhân viên</th>
+          <th onclick="sortTable('CheckinDate')" data-i18n="col_date">Ngày Chấm công</th>
+          <th onclick="sortTable('CreationTime')" data-i18n="col_time">Giờ Chấm công</th>
+          <th onclick="sortTable('CheckType')" data-i18n="col_type">Loại Chấm công</th>
+          <th onclick="sortTable('ProjectId')" data-i18n="col_project">Mã dự án</th>
+          <th onclick="sortTable('Tasks')" data-i18n="col_tasks">Công việc</th>
+          <th data-i18n="col_photo">Ảnh</th>
+          <th data-i18n="col_address">Địa chỉ</th>
+          <th data-i18n="col_location">Vị trí</th>
+          <th onclick="sortTable('CheckinNote')" data-i18n="col_note">Ghi chú</th>
         </tr>
       </thead>
       <tbody id="dataBody"></tbody>
@@ -182,48 +217,48 @@
   <div id="pagination" class="pagination"></div>
   <div id="leaveSection">
     <div class="controls">
-      <label><b>Bộ lọc:</b></label>
-      <button onclick="applyLeaveFilter('hôm nay')" id="leave-btn-homnay">Hôm nay</button>
-      <button onclick="applyLeaveFilter('tuần')" id="leave-btn-tuan">Tuần</button>
-      <button onclick="applyLeaveFilter('tháng')" id="leave-btn-thang">Tháng</button>
-      <button onclick="applyLeaveFilter('năm')" id="leave-btn-nam">Năm</button>
-      <button onclick="applyLeaveFilter('tất cả')" id="leave-btn-tatca">Tất cả</button>
+      <label><b data-i18n="filter_label">Bộ lọc:</b></label>
+      <button onclick="applyLeaveFilter('hôm nay')" id="leave-btn-homnay" data-i18n="f_today">Hôm nay</button>
+      <button onclick="applyLeaveFilter('tuần')" id="leave-btn-tuan" data-i18n="f_week">Tuần</button>
+      <button onclick="applyLeaveFilter('tháng')" id="leave-btn-thang" data-i18n="f_month">Tháng</button>
+      <button onclick="applyLeaveFilter('năm')" id="leave-btn-nam" data-i18n="f_year">Năm</button>
+      <button onclick="applyLeaveFilter('tất cả')" id="leave-btn-tatca" data-i18n="f_all">Tất cả</button>
       <select id="leaveDateTypeFilter" onchange="applyLeaveDateTypeFilter()">
-        <option value="CheckinTime">Ngày tạo đơn</option>
-        <option value="ApprovalDate2">Ngày duyệt/từ chối</option> 
-        <option value="LeaveDate">Ngày nghỉ</option>       
+        <option value="CheckinTime" data-i18n="dt_created">Ngày tạo đơn</option>
+        <option value="ApprovalDate2" data-i18n="dt_approved">Ngày duyệt/từ chối</option> 
+        <option value="LeaveDate" data-i18n="dt_leave">Ngày nghỉ</option>       
       </select>
     </div>
     <div class="controls">
-      <label><b>Từ ngày:</b></label><input type="date" id="leaveStartDate" />
-      <label><b>Đến ngày:</b></label><input type="date" id="leaveEndDate" />
-      <button onclick="applyLeaveDateRange()">Áp dụng</button>
+      <label><b data-i18n="from_date">Từ ngày:</b></label><input type="date" id="leaveStartDate" />
+      <label><b data-i18n="to_date">Đến ngày:</b></label><input type="date" id="leaveEndDate" />
+      <button onclick="applyLeaveDateRange()" data-i18n="apply">Áp dụng</button>
     </div>
     <div class="controls">
-      <input type="text" id="leaveSearchBox" placeholder="Nhập tên hoặc mã nhân viên..." />
-      <button onclick="applyLeaveSearch()">Tìm kiếm</button>
+      <input type="text" id="leaveSearchBox" placeholder="Nhập tên hoặc mã nhân viên..." data-i18n-ph="search_ph" />
+      <button onclick="applyLeaveSearch()" data-i18n="search">Tìm kiếm</button>
       <select id="leaveRowsPerPage" onchange="updateLeaveRowsPerPage()">
-        <option value="5" selected>5 dòng</option>
-        <option value="10">10 dòng</option>
-        <option value="20">20 dòng</option>
-        <option value="25">25 dòng</option>
+        <option value="5" selected data-i18n="rows5">5 dòng</option>
+        <option value="10" data-i18n="rows10">10 dòng</option>
+        <option value="20" data-i18n="rows20">20 dòng</option>
+        <option value="25" data-i18n="rows25">25 dòng</option>
       </select>
-      <button onclick="handleExportClick()">Xuất Dữ Liệu</button>
-      <button onclick="refreshLeaveData()">Làm mới</button>
-      <button onclick="resetLeaveFilter()">Reset</button>
+      <button onclick="handleExportClick()" data-i18n="export">Xuất Dữ Liệu</button>
+      <button onclick="refreshLeaveData()" data-i18n="refresh">Làm mới</button>
+      <button onclick="resetLeaveFilter()" data-i18n="reset">Reset</button>
     </div>
     <div id="leaveTableContainer" class="table-container table-scroll">
       <table id="leaveTable">
         <thead>
           <tr>
-            <th onclick="sortLeaveTable('EmployeeId')">Mã NV</th>
-            <th onclick="sortLeaveTable('EmployeeName')">Tên nhân viên</th>
-            <th onclick="sortLeaveTable('CheckinDate')">Ngày nghỉ</th>
-            <th onclick="sortLeaveTable('CheckinTime')">Ngày tạo đơn</th>
-            <th onclick="sortLeaveTable('Tasks')">Lý do</th>
-            <th onclick="sortLeaveTable('ApprovalDate2')">Ngày Duyệt/Từ chối</th>
-            <th onclick="sortLeaveTable('Status2')">Trạng thái</th>
-            <th onclick="sortLeaveTable('Note')">Ghi chú</th>
+            <th onclick="sortLeaveTable('EmployeeId')" data-i18n="col_emp_id">Mã NV</th>
+            <th onclick="sortLeaveTable('EmployeeName')" data-i18n="col_emp_name">Tên nhân viên</th>
+            <th onclick="sortLeaveTable('CheckinDate')" data-i18n="col_leave_date">Ngày nghỉ</th>
+            <th onclick="sortLeaveTable('CheckinTime')" data-i18n="col_created">Ngày tạo đơn</th>
+            <th onclick="sortLeaveTable('Tasks')" data-i18n="col_reason">Lý do</th>
+            <th onclick="sortLeaveTable('ApprovalDate2')" data-i18n="col_approved">Ngày Duyệt/Từ chối</th>
+            <th onclick="sortLeaveTable('Status2')" data-i18n="col_status">Trạng thái</th>
+            <th onclick="sortLeaveTable('Note')" data-i18n="col_note">Ghi chú</th>
           </tr>
         </thead>
         <tbody id="leaveDataBody"></tbody>
@@ -235,11 +270,11 @@
   <!-- MODAL ĐĂNG NHẬP -->
   <div id="loginModal" class="modal">
     <div class="modal-content">
-      <h2>Đăng nhập</h2>
-      <input type="email" id="loginEmail" placeholder="Nhập email admin..." />
-      <input type="password" id="loginPass" placeholder="Mật khẩu..." />
-      <button id="loginBtn">Đăng nhập</button>
-      <a href="/forgot-password">Quên mật khẩu?</a>
+      <h2 data-i18n="login_title">Đăng nhập</h2>
+      <input type="email" id="loginEmail" placeholder="Nhập email admin..." data-i18n-ph="login_email_ph" />
+      <input type="password" id="loginPass" placeholder="Mật khẩu..." data-i18n-ph="login_pass_ph" />
+      <button id="loginBtn" data-i18n="login_btn">Đăng nhập</button>
+      <a href="/forgot-password" data-i18n="forgot_pass">Quên mật khẩu?</a>
       <div id="modalMessage" class="msg" style="display:none;"></div>
     </div>
   </div>
@@ -247,29 +282,29 @@
   <!-- MODAL XUẤT DỮ LIỆU -->
   <div id="exportModal" class="modal">
     <div class="modal-content">
-      <h2>Xuất Dữ Liệu</h2>
+      <h2 data-i18n="export_title">Xuất Dữ Liệu</h2>
       <div style="margin-bottom: 15px;">
-        <label><b>Chọn loại dữ liệu:</b></label><br>
+        <label><b data-i18n="export_choose_type">Chọn loại dữ liệu:</b></label><br>
         <select id="exportTypeSelect" style="width: 100%; margin-top: 8px;">
-          <option value="">-- Chọn loại file --</option>
-          <option value="attendance">Điểm Danh</option>
-          <option value="leave">Nghỉ Phép</option>
-          <option value="combined">Điểm danh & Nghỉ phép</option>
+          <option value="" data-i18n="export_pick_file">-- Chọn loại file --</option>
+          <option value="attendance" data-i18n="export_attendance">Điểm Danh</option>
+          <option value="leave" data-i18n="export_leave">Nghỉ Phép</option>
+          <option value="combined" data-i18n="export_combined">Điểm danh & Nghỉ phép</option>
         </select>
       </div>
 
       <div style="margin-bottom: 15px;">
-        <label><b>Phạm vi xuất:</b></label><br>
+        <label><b data-i18n="export_range">Phạm vi xuất:</b></label><br>
         <select id="exportRangeType" style="width: 100%; margin-top: 8px;">
-          <option value="month">Xuất theo tháng</option>
-          <option value="date">Xuất theo ngày cụ thể</option>
-          <option value="range">Xuất theo khoảng</option>
+          <option value="month" data-i18n="export_by_month">Xuất theo tháng</option>
+          <option value="date" data-i18n="export_by_date">Xuất theo ngày cụ thể</option>
+          <option value="range" data-i18n="export_by_range">Xuất theo khoảng</option>
         </select>
       </div>
 
       <!-- Tháng + Năm -->
       <div id="monthRange" class="export-range-option active">
-        <label>Tháng/Năm:</label>
+        <label data-i18n="export_month_year">Tháng/Năm:</label>
         <div style="display: flex; gap: 8px; margin-top: 5px;">
           <select id="exportMonth" style="flex: 1;">
             <option value="1">1</option><option value="2">2</option><option value="3">3</option>
@@ -283,22 +318,22 @@
 
       <!-- Ngày cụ thể -->
       <div id="dateRange" class="export-range-option">
-        <label>Chọn ngày:</label>
+        <label data-i18n="export_pick_date">Chọn ngày:</label>
         <input type="date" id="exportSingleDate" style="width: 100%; margin-top: 5px;" />
       </div>
 
       <!-- Khoảng ngày -->
       <div id="rangeDates" class="export-range-option">
-        <label>Từ ngày:</label>
+        <label data-i18n="from_date">Từ ngày:</label>
         <input type="date" id="exportStartDate" style="width: 100%; margin-top: 5px; margin-bottom: 8px;" />
-        <label>Đến ngày:</label>
+        <label data-i18n="to_date">Đến ngày:</label>
         <input type="date" id="exportEndDate" style="width: 100%; margin-top: 5px;" />
       </div>
 
       <div style="display: flex; gap: 8px; margin-top: 20px;">
-        <button id="confirmExportBtn" style="flex: 1; background: var(--success);">Xuất</button>
-        <button id="cancelExportBtn" style="flex: 1; background: var(--muted); color: white;">Hủy</button>
-        <button id="resetExportBtn" style="flex: 1; background: var(--danger);">Reset</button>
+        <button id="confirmExportBtn" style="flex: 1; background: var(--success);" data-i18n="export_do">Xuất</button>
+        <button id="cancelExportBtn" style="flex: 1; background: var(--muted); color: white;" data-i18n="btn_cancel">Hủy</button>
+        <button id="resetExportBtn" style="flex: 1; background: var(--danger);" data-i18n="reset">Reset</button>
       </div>
 
       <div id="exportModalMessage" class="msg" style="display:none; margin-top: 10px;"></div>
@@ -324,14 +359,125 @@
     let currentLeavePage = 1;
     let leaveRowsPerPage = 5;
 
+    // ========================= i18n VI / EN =========================
+    const I18N = {
+      vi: {
+        page_title: "Dữ liệu Chấm công & Nghỉ phép",
+        logout: "Đăng xuất", tab_attendance: "Điểm danh", tab_leave: "Nghỉ phép",
+        filter_label: "Bộ lọc:", f_today: "Hôm nay", f_week: "Tuần", f_month: "Tháng", f_year: "Năm", f_all: "Tất cả",
+        from_date: "Từ ngày:", to_date: "Đến ngày:", apply: "Áp dụng",
+        search_ph: "Nhập tên hoặc mã nhân viên...", search: "Tìm kiếm",
+        rows5: "5 dòng", rows10: "10 dòng", rows20: "20 dòng", rows25: "25 dòng",
+        export: "Xuất Dữ Liệu", refresh: "Làm mới", reset: "Reset",
+        col_emp_id: "Mã NV", col_emp_name: "Tên nhân viên", col_date: "Ngày Chấm công",
+        col_time: "Giờ Chấm công", col_type: "Loại Chấm công", col_project: "Mã dự án",
+        col_tasks: "Công việc", col_photo: "Ảnh", col_address: "Địa chỉ", col_location: "Vị trí", col_note: "Ghi chú",
+        dt_created: "Ngày tạo đơn", dt_approved: "Ngày duyệt/từ chối", dt_leave: "Ngày nghỉ",
+        col_leave_date: "Ngày nghỉ", col_created: "Ngày tạo đơn", col_reason: "Lý do",
+        col_approved: "Ngày Duyệt/Từ chối", col_status: "Trạng thái",
+        login_title: "Đăng nhập", login_email_ph: "Nhập email admin...", login_pass_ph: "Mật khẩu...",
+        login_btn: "Đăng nhập", forgot_pass: "Quên mật khẩu?",
+        export_title: "Xuất Dữ Liệu", export_choose_type: "Chọn loại dữ liệu:", export_pick_file: "-- Chọn loại file --",
+        export_attendance: "Điểm Danh", export_leave: "Nghỉ Phép", export_combined: "Điểm danh & Nghỉ phép",
+        export_range: "Phạm vi xuất:", export_by_month: "Xuất theo tháng", export_by_date: "Xuất theo ngày cụ thể",
+        export_by_range: "Xuất theo khoảng", export_month_year: "Tháng/Năm:", export_pick_date: "Chọn ngày:",
+        export_do: "Xuất", btn_cancel: "Hủy",
+        // dynamic
+        greeting: "Xin chào, {name}!", success_title: "Thành công", notice_title: "Thông báo",
+        login_success: "Đăng nhập thành công", logout_done: "Đã đăng xuất", exporting: "Đang xuất file...",
+        not_logged_in: "Chưa đăng nhập!", load_err: "Lỗi tải dữ liệu", load_leave_err: "Lỗi tải dữ liệu nghỉ phép",
+        enter_email_pass: "Nhập email và mật khẩu", wrong_info: "Sai thông tin",
+        checkin_label: "Check In", checkout_label: "Check Out", view: "Xem",
+        err_choose_type: "Vui lòng chọn loại dữ liệu!", err_month_year: "Chọn tháng và năm!",
+        err_single_date: "Chọn ngày cụ thể!", err_full_range: "Chọn đầy đủ từ ngày đến ngày!",
+        err_range_order: "Ngày bắt đầu phải trước ngày kết thúc!", err_export: "Lỗi khi xuất dữ liệu!"
+      },
+      en: {
+        page_title: "Attendance & Leave Data",
+        logout: "Log out", tab_attendance: "Attendance", tab_leave: "Leave",
+        filter_label: "Filter:", f_today: "Today", f_week: "Week", f_month: "Month", f_year: "Year", f_all: "All",
+        from_date: "From:", to_date: "To:", apply: "Apply",
+        search_ph: "Enter name or employee ID...", search: "Search",
+        rows5: "5 rows", rows10: "10 rows", rows20: "20 rows", rows25: "25 rows",
+        export: "Export Data", refresh: "Refresh", reset: "Reset",
+        col_emp_id: "Emp ID", col_emp_name: "Employee name", col_date: "Check-in date",
+        col_time: "Check-in time", col_type: "Check type", col_project: "Project ID",
+        col_tasks: "Tasks", col_photo: "Photo", col_address: "Address", col_location: "Location", col_note: "Note",
+        dt_created: "Created date", dt_approved: "Approved/Rejected date", dt_leave: "Leave date",
+        col_leave_date: "Leave date", col_created: "Created date", col_reason: "Reason",
+        col_approved: "Approved/Rejected date", col_status: "Status",
+        login_title: "Log in", login_email_ph: "Enter admin email...", login_pass_ph: "Password...",
+        login_btn: "Log in", forgot_pass: "Forgot password?",
+        export_title: "Export Data", export_choose_type: "Choose data type:", export_pick_file: "-- Choose file type --",
+        export_attendance: "Attendance", export_leave: "Leave", export_combined: "Attendance & Leave",
+        export_range: "Export range:", export_by_month: "By month", export_by_date: "By specific date",
+        export_by_range: "By range", export_month_year: "Month/Year:", export_pick_date: "Choose date:",
+        export_do: "Export", btn_cancel: "Cancel",
+        greeting: "Hello, {name}!", success_title: "Success", notice_title: "Notice",
+        login_success: "Login successful", logout_done: "Logged out", exporting: "Exporting file...",
+        not_logged_in: "Not logged in!", load_err: "Failed to load data", load_leave_err: "Failed to load leave data",
+        enter_email_pass: "Enter email and password", wrong_info: "Wrong credentials",
+        checkin_label: "Check In", checkout_label: "Check Out", view: "View",
+        err_choose_type: "Please choose a data type!", err_month_year: "Choose month and year!",
+        err_single_date: "Choose a specific date!", err_full_range: "Choose both start and end dates!",
+        err_range_order: "Start date must be before end date!", err_export: "Error while exporting data!"
+      }
+    };
+    function detectLang() {
+      const saved = localStorage.getItem("appLang");
+      if (saved === "vi" || saved === "en") return saved;
+      const nav = (navigator.language || navigator.userLanguage || "vi").toLowerCase();
+      return nav.startsWith("en") ? "en" : "vi";
+    }
+    let currentLang = detectLang();
+    function t(key, vars) {
+      let s = (I18N[currentLang] && I18N[currentLang][key]) || I18N.vi[key] || key;
+      if (vars) for (const k in vars) s = s.replace(new RegExp("{" + k + "}", "g"), vars[k]);
+      return s;
+    }
+    function applyLanguage(lang) {
+      currentLang = (lang === "en") ? "en" : "vi";
+      localStorage.setItem("appLang", currentLang);
+      document.documentElement.lang = currentLang;
+      document.querySelectorAll("[data-i18n]").forEach(el => {
+        const key = el.getAttribute("data-i18n");
+        if (I18N[currentLang][key] !== undefined) el.textContent = I18N[currentLang][key];
+      });
+      document.querySelectorAll("[data-i18n-ph]").forEach(el => {
+        const key = el.getAttribute("data-i18n-ph");
+        if (I18N[currentLang][key] !== undefined) el.placeholder = I18N[currentLang][key];
+      });
+      document.querySelectorAll("#langSwitch button").forEach(b => {
+        b.classList.toggle("active", b.getAttribute("data-lang") === currentLang);
+      });
+      // Cập nhật lời chào + vẽ lại bảng để dịch nội dung động
+      const user = localStorage.getItem("adminUser") || localStorage.getItem("adminEmail");
+      const greetEl = document.getElementById("greeting");
+      if (user && greetEl && greetEl.style.display !== "none") greetEl.textContent = t("greeting", { name: user });
+      if (typeof rawData !== "undefined" && rawData.length) renderTable();
+      if (typeof rawLeaveData !== "undefined" && rawLeaveData.length) renderLeaveTable();
+    }
+
+    // ===================== TOAST (ở lâu hơn + nút đóng) =====================
     function showMessage(msg, type="success", isModal=false) {
-      const el = isModal ? document.getElementById("modalMessage") : document.getElementById("messageArea");
-      el.innerHTML = `<div class="msg ${type}">${msg}</div>`;
-      el.style.display = "block";
-      setTimeout(() => {
-        el.innerHTML = "";
-        el.style.display = "none";
-      }, 4000);
+      if (isModal) {
+        const el = document.getElementById("modalMessage");
+        el.innerHTML = `<div class="msg ${type}">${msg}</div>`;
+        el.style.display = "block";
+        setTimeout(() => { el.innerHTML = ""; el.style.display = "none"; }, 6000);
+        return;
+      }
+      const container = document.getElementById("toastContainer");
+      if (!container) { alert(msg); return; }
+      const toast = document.createElement("div");
+      toast.className = "toast " + (type === "error" ? "error" : "success");
+      const title = type === "error" ? t("notice_title") : t("success_title");
+      toast.innerHTML = `<div style="font-weight:bold;margin-bottom:2px;">${title}</div><div>${msg}</div>` +
+                        `<button class="toast-close" aria-label="close">&times;</button>`;
+      container.appendChild(toast);
+      const remove = () => { if (toast.parentNode) toast.parentNode.removeChild(toast); };
+      toast.querySelector(".toast-close").addEventListener("click", remove);
+      setTimeout(remove, 15000);
     }
 
     function showDashboard() {
@@ -382,7 +528,7 @@
     async function login() {
       const email = document.getElementById("loginEmail").value.trim();
       const pass = document.getElementById("loginPass").value;
-      if (!email || !pass) return showMessage("Nhập email và mật khẩu", "error", true);
+      if (!email || !pass) return showMessage(t("enter_email_pass"), "error", true);
       const formData = new FormData();
       formData.append("email", email);
       formData.append("password", pass);
@@ -391,12 +537,12 @@
       if (res.ok && data.success) {
         localStorage.setItem("adminEmail", email);
         localStorage.setItem("adminUser", data.username || data.email);
-        document.getElementById("greeting").innerHTML = `Xin chào, ${data.username || email}!`;
+        document.getElementById("greeting").textContent = t("greeting", { name: data.username || email });
         showDashboard();
-        showMessage("Đăng nhập thành công", "success");
+        showMessage(t("login_success"), "success");
         applyFilter("hôm nay");
       } else {
-        showMessage(data.message || "Sai thông tin", "error", true);
+        showMessage(data.message || t("wrong_info"), "error", true);
       }
     }
 
@@ -406,7 +552,7 @@
       document.getElementById("loginPass").value = "";
       document.getElementById("loginModal").style.display = "flex";
       hideDashboard();
-      showMessage("Đã đăng xuất", "success");
+      showMessage(t("logout_done"), "success");
     }
 
     document.getElementById("loginBtn").onclick = login;
@@ -499,14 +645,14 @@
       const email = localStorage.getItem("adminEmail");
       if (!email) {
         document.getElementById("loginModal").style.display = "flex";
-        return showMessage("Chưa đăng nhập!", "error");
+        return showMessage(t("not_logged_in"), "error");
       }
       let url = `/api/attendances?email=${encodeURIComponent(email)}&filter=${encodeURIComponent(currentFilter)}`;
       if (startDate && endDate) url += `&startDate=${startDate}&endDate=${endDate}`;
       if (currentSearch) url += `&search=${encodeURIComponent(currentSearch)}`;
       const res = await fetch(url);
       const data = await res.json();
-      if (!res.ok) return showMessage(data.error || "Lỗi tải dữ liệu", "error");
+      if (!res.ok) return showMessage(data.error || t("load_err"), "error");
       rawData = data;
       displayData = processDataWithHours(rawData);
       currentPage = 1;
@@ -536,9 +682,9 @@
       pageData.forEach(r => {
         const img = r.FaceImage || r.PhotoURL ? `<img src="${r.FaceImage || r.PhotoURL}" class="checkin-photo">` : "";
         const mapLink = (r.Latitude && r.Longitude)
-          ? `<a href="https://maps.google.com/?q=${r.Latitude},${r.Longitude}" target="_blank" class="map-link">Xem</a>`
+          ? `<a href="https://maps.google.com/?q=${r.Latitude},${r.Longitude}" target="_blank" class="map-link">${t("view")}</a>`
           : "";
-        const checkTypeFormatted = r.CheckType === 'checkin' ? 'Check In' : (r.CheckType === 'checkout' ? 'Check Out' : (r.CheckType || ""));
+        const checkTypeFormatted = r.CheckType === 'checkin' ? t("checkin_label") : (r.CheckType === 'checkout' ? t("checkout_label") : (r.CheckType || ""));
         tbody.innerHTML += `
           <tr>
             <td>${r.EmployeeId||""}</td>
@@ -563,14 +709,14 @@
       const email = localStorage.getItem("adminEmail");
       if (!email) {
         document.getElementById("loginModal").style.display = "flex";
-        return showMessage("Chưa đăng nhập!", "error");
+        return showMessage(t("not_logged_in"), "error");
       }
       let url = `/api/leaves?email=${encodeURIComponent(email)}&filter=${encodeURIComponent(currentLeaveFilter)}&dateType=${encodeURIComponent(leaveDateType)}`;
       if (leaveStartDate && leaveEndDate) url += `&startDate=${leaveStartDate}&endDate=${leaveEndDate}`;
       if (currentLeaveSearch) url += `&search=${encodeURIComponent(currentLeaveSearch)}`;
       const res = await fetch(url);
       const data = await res.json();
-      if (!res.ok) return showMessage(data.error || "Lỗi tải dữ liệu nghỉ phép", "error");
+      if (!res.ok) return showMessage(data.error || t("load_leave_err"), "error");
       rawLeaveData = data;
       currentLeavePage = 1;
       renderLeaveTable();
@@ -772,7 +918,7 @@
       const email = localStorage.getItem("adminEmail");
       if (!email) {
         document.getElementById("loginModal").style.display = "flex";
-        return showMessage("Chưa đăng nhập", "error");
+        return showMessage(t("not_logged_in"), "error");
       }
       resetExportModal();
       const currentMonth = new Date().getMonth() + 1;
@@ -823,7 +969,7 @@
       const exportType = document.getElementById("exportTypeSelect").value;
       const rangeType = document.getElementById("exportRangeType").value;
 
-      if (!exportType) return showModalMessage("Vui lòng chọn loại dữ liệu!", "error");
+      if (!exportType) return showModalMessage(t("err_choose_type"), "error");
 
       let url = "";
       let params = new URLSearchParams();
@@ -855,19 +1001,19 @@
       if (rangeType === "month") {
         const month = document.getElementById("exportMonth").value;
         const year = document.getElementById("exportYear").value;
-        if (!month || !year) return showModalMessage("Chọn tháng và năm!", "error");
+        if (!month || !year) return showModalMessage(t("err_month_year"), "error");
         params.append("month", month);
         params.append("year", year);
       } else if (rangeType === "date") {
         const date = document.getElementById("exportSingleDate").value;
-        if (!date) return showModalMessage("Chọn ngày cụ thể!", "error");
+        if (!date) return showModalMessage(t("err_single_date"), "error");
         params.append("startDate", date);
         params.append("endDate", date);
       } else if (rangeType === "range") {
         const start = document.getElementById("exportStartDate").value;
         const end = document.getElementById("exportEndDate").value;
-        if (!start || !end) return showModalMessage("Chọn đầy đủ từ ngày đến ngày!", "error");
-        if (start > end) return showModalMessage("Ngày bắt đầu phải trước ngày kết thúc!", "error");
+        if (!start || !end) return showModalMessage(t("err_full_range"), "error");
+        if (start > end) return showModalMessage(t("err_range_order"), "error");
         params.append("startDate", start);
         params.append("endDate", end);
       }
@@ -875,18 +1021,32 @@
       try {
         window.location.href = `${url}?${params.toString()}`;
         document.getElementById("exportModal").style.display = "none";
-        showMessage("Đang xuất file...", "success");
+        showMessage(t("exporting"), "success");
       } catch (err) {
-        showModalMessage("Lỗi khi xuất dữ liệu!", "error");
+        showModalMessage(t("err_export"), "error");
       }
     };
 
+    // Đồng hồ ở header
+    function updateHeaderClock() {
+      const el = document.getElementById("headerClock");
+      if (el) el.textContent = new Date().toLocaleString(currentLang === "en" ? "en-GB" : "vi-VN");
+    }
+    setInterval(updateHeaderClock, 1000);
+
+    // Nút chuyển ngôn ngữ VI/EN
+    document.querySelectorAll("#langSwitch button").forEach(btn => {
+      btn.addEventListener("click", () => { applyLanguage(btn.getAttribute("data-lang")); updateHeaderClock(); });
+    });
+
     window.onload = () => {
+      applyLanguage(currentLang); // theo trình duyệt, mặc định Tiếng Việt
+      updateHeaderClock();
       populateYears();
       const email = localStorage.getItem("adminEmail");
       if (email) {
         const username = localStorage.getItem("adminUser");
-        document.getElementById("greeting").innerHTML = `Xin chào, ${username}!`;
+        document.getElementById("greeting").textContent = t("greeting", { name: username });
         showDashboard();
         applyFilter("hôm nay");
       } else {
