@@ -3,9 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="color-scheme" content="light only"/>
   <link rel="icon" href="{{ url_for('static', filename='favicon-32x32.png') }}" type="image/png">
   <title>Dữ liệu Chấm công & Nghỉ phép</title>
   <style>
+    html { color-scheme: light only; }
     :root {
       --bg: #f4f6f9;
       --card: #fff;
@@ -127,9 +129,10 @@
     .header-title { font-size: 1.5rem; font-weight: bold; color: var(--primary-dark); letter-spacing:.3px; }
     .header-actions { display:flex; align-items:center; gap:12px; }
     .header-clock { font-size: 1rem; color:var(--primary); font-weight:bold; }
-    .lang-switch { display:flex; border:1px solid var(--primary); border-radius:20px; overflow:hidden; }
+    .lang-switch { display:inline-flex; border:1px solid var(--primary); border-radius:6px; overflow:hidden; }
     .lang-switch button { border:none; background:#fff; color:var(--primary); font-weight:bold;
-             padding:3px 9px; cursor:pointer; font-size:.72rem; line-height:1.4; margin:0; }
+             padding:4px 12px; cursor:pointer; font-size:.75rem; line-height:1.2; margin:0; }
+    .lang-switch button + button { border-left:1px solid var(--primary); }
     .lang-switch button.active { background: var(--primary); color:#fff; }
     footer { margin-top: auto; padding: 15px; background: #f7f7f8; text-align: center; color: #666;
              border-top:1px solid #e4e4e7; }
